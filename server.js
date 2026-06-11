@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,62 +14,87 @@ const io = socketIO(server, {
   }
 });
 
+app.use(express.json());
 app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// ========== BASE DE DONNÉES SQLITE ==========
+const db = new sqlite3.Database('./database.sqlite');
+
+// Initialisation des tables
+db.serialize(() => {
+  // Table des joueurs
+  db.run(`
+    CREATE TABLE IF NOT EXISTS players (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE,
+      display_name TEXT,
+      total_games INTEGER DEFAULT 0,
+      total_wins INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Table des parties
+  db.run(`
+    CREATE TABLE IF NOT EXISTS games (
+      id TEXT PRIMARY KEY,
+      player_nord_id TEXT,
+      player_sud_id TEXT,
+      board TEXT,
+      current_turn TEXT,
+      nord_score INTEGER DEFAULT 0,
+      sud_score INTEGER DEFAULT 0,
+      history TEXT,
+      status TEXT DEFAULT 'waiting',
+      winner TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Table des coups
+  db.run(`
+    CREATE TABLE IF NOT EXISTS moves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id TEXT,
+      move_number INTEGER,
+      player TEXT,
+      hole INTEGER,
+      captured INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 });
 
-// Gestion des parties
-const games = new Map();
-
-function generateGameId() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+// ========== FONCTIONS MÉTIER ==========
+function initBoard() {
+  return JSON.stringify(Array(14).fill(5));
 }
 
-function initializeBoard() {
-  // Plateau: 12 trous (0-5 = Nord/Joueur1, 6-11 = Sud/Joueur2)
-  // Chaque trou commence avec 4 graines
-  return Array(12).fill(4);
+function isValidMove(boardArray, hole, player) {
+  if (player === 'NORD' && (hole < 0 || hole > 6)) return false;
+  if (player === 'SUD' && (hole < 7 || hole > 13)) return false;
+  return boardArray[hole] > 0;
 }
 
-function getValidMoves(board, player) {
-  // player: 'N' (Nord, trous 0-5) ou 'S' (Sud, trous 6-11)
-  const start = player === 'N' ? 0 : 6;
-  const end = player === 'N' ? 6 : 12;
-  const moves = [];
-  
-  for (let i = start; i < end; i++) {
-    if (board[i] > 0) {
-      moves.push(i);
-    }
-  }
-  return moves;
-}
-
-function executeMove(board, hole, player) {
-  let newBoard = [...board];
+function executeMoveLogic(boardArray, hole, player) {
+  let newBoard = [...boardArray];
   let seeds = newBoard[hole];
   newBoard[hole] = 0;
   
   let currentHole = hole;
-  let captured = 0;
   
-  // Distribution des graines
   while (seeds > 0) {
-    currentHole = (currentHole + 1) % 12;
-    // On saute le trou d'origine s'il est vide (déjà vidé)
-    if (currentHole === hole && newBoard[hole] === 0) {
-      continue;
-    }
+    currentHole = (currentHole + 1) % 14;
+    if (currentHole === hole && newBoard[hole] === 0) continue;
     newBoard[currentHole]++;
     seeds--;
   }
   
-  // Capture
+  let captured = 0;
   let lastHole = currentHole;
-  let opponentStart = player === 'N' ? 6 : 0;
-  let opponentEnd = player === 'N' ? 12 : 6;
+  const opponentStart = player === 'NORD' ? 7 : 0;
+  const opponentEnd = player === 'NORD' ? 14 : 7;
   
   while (lastHole >= opponentStart && lastHole < opponentEnd && 
          (newBoard[lastHole] === 2 || newBoard[lastHole] === 3)) {
@@ -79,162 +106,294 @@ function executeMove(board, hole, player) {
   return { board: newBoard, captured };
 }
 
-function checkVictory(board, playerTurn) {
-  const nordSeeds = board.slice(0, 6).reduce((a, b) => a + b, 0);
-  const sudSeeds = board.slice(6, 12).reduce((a, b) => a + b, 0);
+function checkVictory(boardArray, nordScore, sudScore) {
+  const nordTotal = boardArray.slice(0, 7).reduce((a, b) => a + b, 0);
+  const sudTotal = boardArray.slice(7, 14).reduce((a, b) => a + b, 0);
   
-  if (nordSeeds === 0) return 'S';
-  if (sudSeeds === 0) return 'N';
-  
-  // Vérifier si un joueur n'a plus de coups possibles
-  const validMovesNord = getValidMoves(board, 'N');
-  const validMovesSud = getValidMoves(board, 'S');
-  
-  if (validMovesNord.length === 0 && playerTurn === 'N') return 'S';
-  if (validMovesSud.length === 0 && playerTurn === 'S') return 'N';
-  
+  if (nordTotal === 0 || nordScore >= 50) return 'SUD';
+  if (sudTotal === 0 || sudScore >= 50) return 'NORD';
   return null;
 }
 
-io.on('connection', (socket) => {
-  console.log('🎮 Joueur connecté:', socket.id);
+// ========== API ROUTES ==========
 
-  socket.on('createGame', () => {
-    const gameId = generateGameId();
-    games.set(gameId, {
-      players: [socket.id],
-      board: initializeBoard(),
-      currentTurn: 'N', // Nord commence
-      status: 'waiting',
-      playerColors: { [socket.id]: 'N' },
-      history: [],
-      nordScore: 0,
-      sudScore: 0
-    });
-    socket.join(gameId);
-    socket.emit('gameCreated', { gameId, color: 'N' });
-    console.log(`📌 Partie ${gameId} créée`);
-  });
-
-  socket.on('joinGame', (gameId) => {
-    const game = games.get(gameId);
-    if (game && game.status === 'waiting' && game.players.length === 1) {
-      game.players.push(socket.id);
-      game.playerColors[socket.id] = 'S';
-      game.status = 'playing';
-      socket.join(gameId);
-      
-      io.to(gameId).emit('gameStarted', {
-        board: game.board,
-        currentTurn: game.currentTurn,
-        colors: game.playerColors,
-        nordScore: game.nordScore,
-        sudScore: game.sudScore,
-        history: game.history
+// Enregistrement joueur
+app.post('/api/register', (req, res) => {
+  const { username, display_name } = req.body;
+  
+  if (!username || !display_name) {
+    return res.status(400).json({ error: 'Champs manquants' });
+  }
+  
+  db.get('SELECT id, username, display_name FROM players WHERE username = ?', [username], (err, row) => {
+    if (err) return res.status(500).json({ error: 'Erreur base de données' });
+    
+    if (row) {
+      return res.json({ success: true, player_id: row.id, username: row.username, display_name: row.display_name });
+    }
+    
+    const playerId = uuidv4();
+    db.run('INSERT INTO players (id, username, display_name) VALUES (?, ?, ?)', 
+      [playerId, username, display_name], (err) => {
+        if (err) return res.status(500).json({ error: 'Erreur création joueur' });
+        res.json({ success: true, player_id: playerId, username, display_name });
       });
-      
-      socket.emit('gameJoined', { gameId, color: 'S' });
-      console.log(`🎲 Joueur ${socket.id} a rejoint la partie ${gameId}`);
-    } else {
-      socket.emit('joinError', 'Partie inexistante ou déjà pleine');
-    }
-  });
-
-  socket.on('makeMove', ({ gameId, hole }) => {
-    const game = games.get(gameId);
-    if (!game || game.status !== 'playing') return;
-    
-    const playerColor = game.playerColors[socket.id];
-    if (playerColor !== game.currentTurn) {
-      socket.emit('moveError', 'Ce n\'est pas votre tour');
-      return;
-    }
-    
-    // Vérifier que le trou appartient bien au joueur
-    const isValidHole = (playerColor === 'N' && hole >= 0 && hole < 6) ||
-                        (playerColor === 'S' && hole >= 6 && hole < 12);
-    
-    if (!isValidHole) {
-      socket.emit('moveError', 'Trou invalide');
-      return;
-    }
-    
-    if (game.board[hole] === 0) {
-      socket.emit('moveError', 'Ce trou est vide');
-      return;
-    }
-    
-    const result = executeMove(game.board, hole, playerColor);
-    game.board = result.board;
-    
-    // Mettre à jour les scores
-    if (playerColor === 'N') {
-      game.nordScore += result.captured;
-    } else {
-      game.sudScore += result.captured;
-    }
-    
-    // Ajouter à l'historique
-    const moveDesc = `${playerColor === 'N' ? 'Nord' : 'Sud'} joue trou ${(hole % 6) + 1}, capture ${result.captured}`;
-    game.history.unshift(moveDesc);
-    if (game.history.length > 20) game.history.pop();
-    
-    // Vérifier victoire
-    const winner = checkVictory(game.board, game.currentTurn);
-    if (winner) {
-      game.status = 'finished';
-      io.to(gameId).emit('gameOver', { 
-        winner, 
-        board: game.board,
-        nordScore: game.nordScore,
-        sudScore: game.sudScore
-      });
-    } else {
-      game.currentTurn = game.currentTurn === 'N' ? 'S' : 'N';
-      io.to(gameId).emit('moveMade', {
-        board: game.board,
-        currentTurn: game.currentTurn,
-        nordScore: game.nordScore,
-        sudScore: game.sudScore,
-        history: game.history,
-        lastMove: moveDesc,
-        captured: result.captured
-      });
-    }
-  });
-
-  socket.on('resetGame', (gameId) => {
-    const game = games.get(gameId);
-    if (game) {
-      game.board = initializeBoard();
-      game.currentTurn = 'N';
-      game.status = 'playing';
-      game.nordScore = 0;
-      game.sudScore = 0;
-      game.history = [];
-      io.to(gameId).emit('gameReset', { 
-        board: game.board, 
-        currentTurn: 'N',
-        nordScore: 0,
-        sudScore: 0,
-        history: []
-      });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('👋 Joueur déconnecté:', socket.id);
-    for (const [gameId, game] of games.entries()) {
-      if (game.players.includes(socket.id)) {
-        io.to(gameId).emit('playerDisconnected');
-        games.delete(gameId);
-        break;
-      }
-    }
   });
 });
 
+// Créer une partie
+app.post('/api/create_game', (req, res) => {
+  const { player_id, player_name } = req.body;
+  
+  if (!player_id) {
+    return res.status(400).json({ error: 'Identifiant joueur requis' });
+  }
+  
+  const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const board = initBoard();
+  
+  db.run(`INSERT INTO games (id, player_nord_id, board, current_turn, nord_score, sud_score, history, status)
+          VALUES (?, ?, ?, 'NORD', 0, 0, '[]', 'waiting')`,
+    [gameId, player_id, board], (err) => {
+      if (err) return res.status(500).json({ error: 'Erreur création partie' });
+      
+      res.json({
+        success: true,
+        game_id: gameId,
+        board: JSON.parse(board),
+        current_turn: 'NORD',
+        nord_score: 0,
+        sud_score: 0,
+        player_color: 'NORD'
+      });
+    });
+});
+
+// Rejoindre une partie
+app.post('/api/join_game', (req, res) => {
+  const { game_id, player_id } = req.body;
+  
+  if (!game_id || !player_id) {
+    return res.status(400).json({ error: 'Code partie et identifiant requis' });
+  }
+  
+  db.get('SELECT * FROM games WHERE id = ? AND status = "waiting"', [game_id.toUpperCase()], (err, game) => {
+    if (err || !game) {
+      return res.status(404).json({ error: 'Partie inexistante ou déjà commencée' });
+    }
+    
+    db.run('UPDATE games SET player_sud_id = ?, status = "playing" WHERE id = ?',
+      [player_id, game_id.toUpperCase()], (err) => {
+        if (err) return res.status(500).json({ error: 'Erreur lors du join' });
+        
+        res.json({
+          success: true,
+          game_id: game_id.toUpperCase(),
+          board: JSON.parse(game.board),
+          current_turn: game.current_turn,
+          nord_score: game.nord_score,
+          sud_score: game.sud_score,
+          player_color: 'SUD'
+        });
+      });
+  });
+});
+
+// Obtenir l'état d'une partie
+app.get('/api/get_game', (req, res) => {
+  const gameId = req.query.game_id;
+  
+  if (!gameId) {
+    return res.status(400).json({ error: 'Code partie requis' });
+  }
+  
+  db.get('SELECT * FROM games WHERE id = ?', [gameId.toUpperCase()], (err, game) => {
+    if (err || !game) {
+      return res.status(404).json({ error: 'Partie non trouvée' });
+    }
+    
+    // Récupérer les infos joueurs
+    const players = {};
+    
+    if (game.player_nord_id) {
+      db.get('SELECT display_name FROM players WHERE id = ?', [game.player_nord_id], (err, row) => {
+        players.NORD = row ? row.display_name : 'Joueur Nord';
+      });
+    }
+    
+    if (game.player_sud_id) {
+      db.get('SELECT display_name FROM players WHERE id = ?', [game.player_sud_id], (err, row) => {
+        players.SUD = row ? row.display_name : 'Joueur Sud';
+      });
+    }
+    
+    // Récupérer l'historique
+    db.all('SELECT * FROM moves WHERE game_id = ? ORDER BY move_number DESC LIMIT 20', [gameId.toUpperCase()], (err, history) => {
+      res.json({
+        success: true,
+        game: {
+          id: game.id,
+          board: JSON.parse(game.board),
+          current_turn: game.current_turn,
+          nord_score: game.nord_score,
+          sud_score: game.sud_score,
+          status: game.status,
+          winner: game.winner,
+          players
+        },
+        history: history || []
+      });
+    });
+  });
+});
+
+// Jouer un coup
+app.post('/api/make_move', (req, res) => {
+  const { game_id, hole, player_id } = req.body;
+  
+  if (!game_id || hole === undefined || !player_id) {
+    return res.status(400).json({ error: 'Données manquantes' });
+  }
+  
+  db.get('SELECT * FROM games WHERE id = ?', [game_id.toUpperCase()], (err, game) => {
+    if (err || !game) {
+      return res.status(404).json({ error: 'Partie non trouvée' });
+    }
+    
+    if (game.status !== 'playing') {
+      return res.status(400).json({ error: 'Partie terminée' });
+    }
+    
+    // Déterminer le joueur
+    let playerColor = null;
+    if (game.player_nord_id === player_id) playerColor = 'NORD';
+    if (game.player_sud_id === player_id) playerColor = 'SUD';
+    
+    if (!playerColor) {
+      return res.status(403).json({ error: 'Vous n\'êtes pas dans cette partie' });
+    }
+    
+    if (game.current_turn !== playerColor) {
+      return res.status(400).json({ error: 'Ce n\'est pas votre tour' });
+    }
+    
+    const boardArray = JSON.parse(game.board);
+    
+    if (!isValidMove(boardArray, hole, playerColor)) {
+      return res.status(400).json({ error: 'Coup invalide' });
+    }
+    
+    const result = executeMoveLogic(boardArray, hole, playerColor);
+    
+    let nordScore = game.nord_score;
+    let sudScore = game.sud_score;
+    
+    if (playerColor === 'NORD') {
+      nordScore += result.captured;
+    } else {
+      sudScore += result.captured;
+    }
+    
+    // Compter les coups
+    db.get('SELECT COUNT(*) as count FROM moves WHERE game_id = ?', [game_id.toUpperCase()], (err, countResult) => {
+      const moveNumber = (countResult?.count || 0) + 1;
+      
+      db.run(`INSERT INTO moves (game_id, move_number, player, hole, captured)
+              VALUES (?, ?, ?, ?, ?)`,
+        [game_id.toUpperCase(), moveNumber, playerColor, hole, result.captured], () => {
+          
+          const newTurn = playerColor === 'NORD' ? 'SUD' : 'NORD';
+          const winner = checkVictory(result.board, nordScore, sudScore);
+          const newStatus = winner ? 'finished' : 'playing';
+          
+          db.run(`UPDATE games 
+                  SET board = ?, nord_score = ?, sud_score = ?, current_turn = ?, status = ?, winner = ?, updated_at = CURRENT_TIMESTAMP
+                  WHERE id = ?`,
+            [JSON.stringify(result.board), nordScore, sudScore, newTurn, newStatus, winner, game_id.toUpperCase()], () => {
+              
+              if (winner) {
+                const winnerId = winner === 'NORD' ? game.player_nord_id : game.player_sud_id;
+                db.run('UPDATE players SET total_games = total_games + 1, total_wins = total_wins + 1 WHERE id = ?', [winnerId]);
+                
+                const loserId = winner === 'NORD' ? game.player_sud_id : game.player_nord_id;
+                if (loserId) {
+                  db.run('UPDATE players SET total_games = total_games + 1 WHERE id = ?', [loserId]);
+                }
+              }
+              
+              res.json({
+                success: true,
+                board: result.board,
+                captured: result.captured,
+                nord_score: nordScore,
+                sud_score: sudScore,
+                current_turn: newTurn,
+                winner: winner
+              });
+            });
+        });
+    });
+  });
+});
+
+// Reset partie
+app.post('/api/reset_game', (req, res) => {
+  const { game_id } = req.body;
+  
+  if (!game_id) {
+    return res.status(400).json({ error: 'Code partie requis' });
+  }
+  
+  const newBoard = initBoard();
+  
+  db.run(`UPDATE games 
+          SET board = ?, nord_score = 0, sud_score = 0, current_turn = 'NORD', status = 'playing', winner = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?`,
+    [newBoard, game_id.toUpperCase()], (err) => {
+      if (err) return res.status(500).json({ error: 'Erreur reset' });
+      
+      db.run('DELETE FROM moves WHERE game_id = ?', [game_id.toUpperCase()]);
+      
+      res.json({
+        success: true,
+        board: JSON.parse(newBoard),
+        current_turn: 'NORD',
+        nord_score: 0,
+        sud_score: 0
+      });
+    });
+});
+
+// Route principale
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ========== SOCKET.IO POUR TEMPS RÉEL ==========
+const onlineGames = new Map();
+
+io.on('connection', (socket) => {
+  console.log('🔌 Client connecté:', socket.id);
+  
+  socket.on('join_game', (gameId) => {
+    socket.join(gameId);
+    onlineGames.set(socket.id, gameId);
+    console.log(`🎮 ${socket.id} a rejoint la partie ${gameId}`);
+  });
+  
+  socket.on('game_update', (data) => {
+    io.to(data.game_id).emit('game_sync', data);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client déconnecté:', socket.id);
+    onlineGames.delete(socket.id);
+  });
+});
+
+// ========== DÉMARRAGE ==========
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur Awélé démarré sur http://localhost:${PORT}`);
+  console.log(`📊 Base de données: SQLite (./database.sqlite)`);
 });
