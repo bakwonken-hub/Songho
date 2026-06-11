@@ -1,7 +1,7 @@
 {
   "name": "songho-game",
-  "version": "1.0.0",
-  "description": "Jeu de stratégie Songho - multijoueur local et en ligne",
+  "version": "2.0.0",
+  "description": "Songho - Jeu de stratégie africain avec interface terminal moderne et multijoueur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,7 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["songho", "board-game", "strategy", "multiplayer"],
-  "author": "Votre Nom",
+  "keywords": ["songho", "board-game", "strategy", "multiplayer", "african-game"],
+  "author": "Songho Game",
   "license": "MIT"
 }
