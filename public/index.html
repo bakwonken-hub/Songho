@@ -3,107 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SONGHO 3D - Jeu de Stratégie Africain</title>
+    <title>SONGHO - Jeu de semis africain</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cinema+Decorative&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Cinema+Decorative&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="ui-overlay">
-        <div class="header">
-            <h1>⚔️ SONGHO 3D ⚔️</h1>
-            <p class="subtitle">Jeu de stratégie traditionnel d'Afrique centrale</p>
-        </div>
-
-        <div class="mode-selector">
-            <button id="localModeBtn" class="mode-btn active">
-                <span>👥</span> LOCAL (2 joueurs)
-            </button>
-            <button id="onlineModeBtn" class="mode-btn">
-                <span>🌍</span> MULTIJOUEUR
-            </button>
-        </div>
-
-        <div id="onlinePanel" class="online-panel hidden">
-            <div class="online-card">
-                <button id="createGameBtn" class="action-btn primary">✨ CRÉER UNE PARTIE</button>
-                <div class="divider">OU</div>
-                <div class="join-group">
-                    <input type="text" id="gameIdInput" placeholder="CODE DE PARTIE" maxlength="6">
-                    <button id="joinGameBtn" class="action-btn secondary">🔗 REJOINDRE</button>
+    <div class="app-container">
+        <!-- Sidebar gauche - Informations -->
+        <div class="sidebar left">
+            <div class="logo-area">
+                <h1>⚡ SONGHO ⚡</h1>
+                <p class="subtitle">Jeu de stratégie africain</p>
+            </div>
+            
+            <div class="info-card">
+                <div class="info-header">
+                    <span class="icon">📋</span>
+                    <span>INFORMATIONS</span>
                 </div>
-                <div id="gameStatus" class="game-status"></div>
-            </div>
-        </div>
-
-        <div class="info-panel">
-            <div class="player-card white-card">
-                <div class="player-avatar">
-                    <div class="piece-3d-icon white-icon"></div>
-                    <span class="player-name">STRATÈGE BLANC</span>
+                <div class="info-content">
+                    <div class="info-row">
+                        <span class="label">JOUEUR</span>
+                        <span class="value" id="playerName">BAKWO NKEN.</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">STATUS</span>
+                        <span class="value status" id="gameStatus">EN JEU</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">UNIVERSITÉ</span>
+                        <span class="value">UNIVERSITÉ DE YAOUNDÉ 1</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">NIVEAU</span>
+                        <span class="value">LICENCE 2</span>
+                    </div>
                 </div>
-                <div class="score" id="whiteScore">12</div>
-                <div class="direction-badge">NORD</div>
             </div>
-
-            <div class="turn-indicator-3d">
-                <div class="turn-glow" id="turnGlow"></div>
-                <div class="turn-text" id="turnText">TOUR DES BLANCS</div>
-                <div class="turn-piece-3d" id="turnPiece3d"></div>
-            </div>
-
-            <div class="player-card black-card">
-                <div class="player-avatar">
-                    <div class="piece-3d-icon black-icon"></div>
-                    <span class="player-name">STRATÈGE NOIR</span>
+            
+            <div class="menu-card">
+                <div class="menu-item" id="infoBtn">
+                    <span class="icon">ℹ️</span>
+                    <span>INFO</span>
                 </div>
-                <div class="score" id="blackScore">12</div>
-                <div class="direction-badge">SUD</div>
+                <div class="menu-item" id="rulesBtn">
+                    <span class="icon">📜</span>
+                    <span>RÈGLES</span>
+                </div>
+                <div class="menu-item" id="priseBtn">
+                    <span class="icon">⚡</span>
+                    <span>PRISE</span>
+                </div>
+                <div class="menu-item" id="quitBtn">
+                    <span class="icon">🚪</span>
+                    <span>QUITTER</span>
+                </div>
+            </div>
+            
+            <div class="connection-card">
+                <div class="connection-status">
+                    <span class="dot" id="connectionDot"></span>
+                    <span id="connectionText">CONNECTÉ</span>
+                </div>
+                <div class="mode-switch">
+                    <button id="localModeBtn" class="mode-btn active">LOCAL</button>
+                    <button id="onlineModeBtn" class="mode-btn">EN LIGNE</button>
+                </div>
+                <div id="onlinePanel" class="online-panel hidden">
+                    <button id="createGameBtn" class="action-btn">🎮 CRÉER</button>
+                    <div class="join-row">
+                        <input type="text" id="gameIdInput" placeholder="CODE" maxlength="6">
+                        <button id="joinGameBtn" class="action-btn small">🔗</button>
+                    </div>
+                    <div id="gameCodeDisplay" class="game-code"></div>
+                </div>
             </div>
         </div>
-
-        <div class="controls">
-            <button id="resetBtn" class="control-btn">
-                <span>🔄</span> NOUVELLE PARTIE
-            </button>
-            <button id="rulesBtn" class="control-btn">
-                <span>📖</span> RÈGLES
-            </button>
-        </div>
-
-        <div id="messageModal" class="modal hidden">
-            <div class="modal-content-3d">
-                <h2 id="modalTitle">🏆 VICTOIRE</h2>
-                <p id="modalMessage">Les Blancs gagnent !</p>
-                <button id="modalCloseBtn">FERMER</button>
+        
+        <!-- Zone centrale - Plateau de jeu -->
+        <div class="game-area">
+            <div class="player-info nord">
+                <div class="player-label">
+                    <span class="direction">⬆ NORD ⬆</span>
+                    <span class="player-name">STRATÈGE NORD</span>
+                </div>
+                <div class="seed-counter">
+                    <span class="seed-icon">🟢</span>
+                    <span id="nordScore" class="score-value">0</span>
+                    <span class="seed-label">GRAINES</span>
+                </div>
+            </div>
+            
+            <div class="board-container">
+                <div class="board">
+                    <!-- Trous Nord (joueur du haut) - indices 0 à 5 -->
+                    <div class="holes nord-holes">
+                        <div class="hole" data-hole="5">
+                            <div class="hole-number">6</div>
+                            <div class="seeds-count" id="seed-5">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="4">
+                            <div class="hole-number">5</div>
+                            <div class="seeds-count" id="seed-4">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="3">
+                            <div class="hole-number">4</div>
+                            <div class="seeds-count" id="seed-3">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="2">
+                            <div class="hole-number">3</div>
+                            <div class="seeds-count" id="seed-2">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="1">
+                            <div class="hole-number">2</div>
+                            <div class="seeds-count" id="seed-1">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="0">
+                            <div class="hole-number">1</div>
+                            <div class="seeds-count" id="seed-0">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Zone centrale décorative -->
+                    <div class="board-center">
+                        <div class="turn-indicator" id="turnIndicator">
+                            <span class="turn-label">À VOUS DE JOUER</span>
+                            <div class="turn-player" id="turnPlayer">NORD</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trous Sud (joueur du bas) - indices 6 à 11 -->
+                    <div class="holes sud-holes">
+                        <div class="hole" data-hole="6">
+                            <div class="hole-number">1</div>
+                            <div class="seeds-count" id="seed-6">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="7">
+                            <div class="hole-number">2</div>
+                            <div class="seeds-count" id="seed-7">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="8">
+                            <div class="hole-number">3</div>
+                            <div class="seeds-count" id="seed-8">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="9">
+                            <div class="hole-number">4</div>
+                            <div class="seeds-count" id="seed-9">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="10">
+                            <div class="hole-number">5</div>
+                            <div class="seeds-count" id="seed-10">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                        <div class="hole" data-hole="11">
+                            <div class="hole-number">6</div>
+                            <div class="seeds-count" id="seed-11">4</div>
+                            <div class="seed-glow"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="player-info sud">
+                <div class="player-label">
+                    <span class="direction">⬇ SUD ⬇</span>
+                    <span class="player-name">STRATÈGE SUD</span>
+                </div>
+                <div class="seed-counter">
+                    <span class="seed-icon">🟢</span>
+                    <span id="sudScore" class="score-value">0</span>
+                    <span class="seed-label">GRAINES</span>
+                </div>
             </div>
         </div>
-
-        <div id="rulesModal" class="modal hidden">
-            <div class="modal-content-3d rules-modal">
-                <h2>📜 RÈGLES DU SONGHO</h2>
-                <ul>
-                    <li><strong>01.</strong> Objectif : Capturer tous les pions adverses</li>
-                    <li><strong>02.</strong> Déplacement d'une case (horizontal/vertical)</li>
-                    <li><strong>03.</strong> Capture par saut par-dessus un pion adverse</li>
-                    <li><strong>04.</strong> 3 pions alignés → retirez un pion adverse</li>
-                    <li><strong>05.</strong> Victoire : plus aucun pion adverse ou impossible de jouer</li>
-                </ul>
-                <button id="rulesCloseBtn">J'AI COMPRIS</button>
+        
+        <!-- Sidebar droite - Historique -->
+        <div class="sidebar right">
+            <div class="history-card">
+                <div class="history-header">
+                    <span class="icon">📜</span>
+                    <span>HISTORIQUE</span>
+                    <span class="badge">DERNIERS COUPS</span>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">Aucun coup pour le moment</div>
+                </div>
+            </div>
+            
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="stat-label">VOTRE CAMP</span>
+                    <span class="stat-value" id="yourCamp">NORD</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">GRAINES</span>
+                    <span class="stat-value" id="yourSeeds">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">ADVERSAIRE</span>
+                    <span class="stat-value" id="opponentSeeds">0</span>
+                </div>
+            </div>
+            
+            <div class="last-move-card" id="lastMoveCard">
+                <div class="last-move-header">
+                    <span class="icon">🔄</span>
+                    <span>DERNIER COUP</span>
+                </div>
+                <div class="last-move-content" id="lastMoveContent">
+                    Aucun coup
+                </div>
             </div>
         </div>
     </div>
-
-    <div id="canvas-container"></div>
-
+    
+    <!-- Modals -->
+    <div id="messageModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-icon" id="modalIcon">🏆</span>
+                <h2 id="modalTitle">Information</h2>
+            </div>
+            <p id="modalMessage"></p>
+            <button id="modalCloseBtn" class="modal-btn">COMPRIS</button>
+        </div>
+    </div>
+    
+    <div id="rulesModal" class="modal hidden">
+        <div class="modal-content rules-modal">
+            <div class="modal-header">
+                <span class="modal-icon">📖</span>
+                <h2>RÈGLES DU SONGHO</h2>
+            </div>
+            <div class="rules-list">
+                <div class="rule-item"><span class="rule-num">01</span> Chaque joueur possède 6 trous contenant 4 graines au départ.</div>
+                <div class="rule-item"><span class="rule-num">02</span> À son tour, le joueur prend toutes les graines d'un de ses trous.</div>
+                <div class="rule-item"><span class="rule-num">03</span> Il les distribue une à une dans les trous suivants (sens horaire).</div>
+                <div class="rule-item"><span class="rule-num">04</span> Si la dernière graine tombe dans un trou adverse contenant 2 ou 3 graines, le joueur capture ces graines.</div>
+                <div class="rule-item"><span class="rule-num">05</span> Le jeu se termine quand un joueur n'a plus de graines.</div>
+                <div class="rule-item"><span class="rule-num">06</span> Le vainqueur est celui qui a capturé le plus de graines (≥ 25).</div>
+            </div>
+            <button id="rulesCloseBtn" class="modal-btn">JOUER</button>
+        </div>
+    </div>
+    
     <script src="/socket.io/socket.io.js"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
-    <script type="module" src="script.js"></script>
+    <script src="script.js"></script>
 </body>
-</html>
+    </html>
