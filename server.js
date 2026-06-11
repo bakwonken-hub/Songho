@@ -26,77 +26,73 @@ function generateGameId() {
 }
 
 function initializeBoard() {
-  const board = Array(5).fill().map(() => Array(5).fill(null));
-  
-  for (let i = 0; i < 2; i++) {
-    for (let j = 0; j < 5; j++) board[i][j] = 'B';
-  }
-  board[2][0] = 'B';
-  board[2][4] = 'B';
-  
-  for (let i = 3; i < 5; i++) {
-    for (let j = 0; j < 5; j++) board[i][j] = 'N';
-  }
-  
-  return board;
+  // Plateau: 12 trous (0-5 = Nord/Joueur1, 6-11 = Sud/Joueur2)
+  // Chaque trou commence avec 4 graines
+  return Array(12).fill(4);
 }
 
-function isValidMove(board, fromX, fromY, toX, toY, color) {
-  if (toX < 0 || toX > 4 || toY < 0 || toY > 4) return false;
-  if (board[toX][toY] !== null) return false;
+function getValidMoves(board, player) {
+  // player: 'N' (Nord, trous 0-5) ou 'S' (Sud, trous 6-11)
+  const start = player === 'N' ? 0 : 6;
+  const end = player === 'N' ? 6 : 12;
+  const moves = [];
   
-  const dx = Math.abs(toX - fromX);
-  const dy = Math.abs(toY - fromY);
-  
-  if (dx + dy === 1) return true;
-  
-  if ((dx === 2 && dy === 0) || (dx === 0 && dy === 2)) {
-    const midX = (fromX + toX) / 2;
-    const midY = (fromY + toY) / 2;
-    const midPiece = board[midX][midY];
-    if (midPiece && midPiece !== color) return true;
-  }
-  
-  return false;
-}
-
-function executeMove(board, fromX, fromY, toX, toY, color) {
-  const piece = board[fromX][fromY];
-  if (!piece || piece !== color) return { success: false };
-  if (!isValidMove(board, fromX, fromY, toX, toY, color)) return { success: false };
-  
-  const newBoard = board.map(row => [...row]);
-  newBoard[toX][toY] = piece;
-  newBoard[fromX][fromY] = null;
-  
-  let captured = false;
-  const dx = toX - fromX;
-  const dy = toY - fromY;
-  
-  if (Math.abs(dx) === 2 || Math.abs(dy) === 2) {
-    const midX = fromX + dx/2;
-    const midY = fromY + dy/2;
-    if (midX >= 0 && midX <= 4 && midY >= 0 && midY <= 4) {
-      if (newBoard[midX][midY] && newBoard[midX][midY] !== color) {
-        newBoard[midX][midY] = null;
-        captured = true;
-      }
+  for (let i = start; i < end; i++) {
+    if (board[i] > 0) {
+      moves.push(i);
     }
   }
-  
-  return { success: true, board: newBoard, captured };
+  return moves;
 }
 
-function checkVictory(board) {
-  let whiteCount = 0, blackCount = 0;
-  for (let i = 0; i < 5; i++) {
-    for (let j = 0; j < 5; j++) {
-      if (board[i][j] === 'B') whiteCount++;
-      if (board[i][j] === 'N') blackCount++;
+function executeMove(board, hole, player) {
+  let newBoard = [...board];
+  let seeds = newBoard[hole];
+  newBoard[hole] = 0;
+  
+  let currentHole = hole;
+  let captured = 0;
+  
+  // Distribution des graines
+  while (seeds > 0) {
+    currentHole = (currentHole + 1) % 12;
+    // On saute le trou d'origine s'il est vide (déjà vidé)
+    if (currentHole === hole && newBoard[hole] === 0) {
+      continue;
     }
+    newBoard[currentHole]++;
+    seeds--;
   }
-  if (whiteCount === 0) return 'N';
-  if (blackCount === 0) return 'B';
+  
+  // Capture
+  let lastHole = currentHole;
+  let opponentStart = player === 'N' ? 6 : 0;
+  let opponentEnd = player === 'N' ? 12 : 6;
+  
+  while (lastHole >= opponentStart && lastHole < opponentEnd && 
+         (newBoard[lastHole] === 2 || newBoard[lastHole] === 3)) {
+    captured += newBoard[lastHole];
+    newBoard[lastHole] = 0;
+    lastHole--;
+  }
+  
+  return { board: newBoard, captured };
+}
+
+function checkVictory(board, playerTurn) {
+  const nordSeeds = board.slice(0, 6).reduce((a, b) => a + b, 0);
+  const sudSeeds = board.slice(6, 12).reduce((a, b) => a + b, 0);
+  
+  if (nordSeeds === 0) return 'S';
+  if (sudSeeds === 0) return 'N';
+  
+  // Vérifier si un joueur n'a plus de coups possibles
+  const validMovesNord = getValidMoves(board, 'N');
+  const validMovesSud = getValidMoves(board, 'S');
+  
+  if (validMovesNord.length === 0 && playerTurn === 'N') return 'S';
+  if (validMovesSud.length === 0 && playerTurn === 'S') return 'N';
+  
   return null;
 }
 
@@ -108,35 +104,43 @@ io.on('connection', (socket) => {
     games.set(gameId, {
       players: [socket.id],
       board: initializeBoard(),
-      currentTurn: 'B',
+      currentTurn: 'N', // Nord commence
       status: 'waiting',
-      playerColors: { [socket.id]: 'B' }
+      playerColors: { [socket.id]: 'N' },
+      history: [],
+      nordScore: 0,
+      sudScore: 0
     });
     socket.join(gameId);
-    socket.emit('gameCreated', { gameId, color: 'B' });
+    socket.emit('gameCreated', { gameId, color: 'N' });
+    console.log(`📌 Partie ${gameId} créée`);
   });
 
   socket.on('joinGame', (gameId) => {
     const game = games.get(gameId);
     if (game && game.status === 'waiting' && game.players.length === 1) {
       game.players.push(socket.id);
-      game.playerColors[socket.id] = 'N';
+      game.playerColors[socket.id] = 'S';
       game.status = 'playing';
       socket.join(gameId);
       
       io.to(gameId).emit('gameStarted', {
         board: game.board,
         currentTurn: game.currentTurn,
-        colors: game.playerColors
+        colors: game.playerColors,
+        nordScore: game.nordScore,
+        sudScore: game.sudScore,
+        history: game.history
       });
       
-      socket.emit('gameJoined', { gameId, color: 'N' });
+      socket.emit('gameJoined', { gameId, color: 'S' });
+      console.log(`🎲 Joueur ${socket.id} a rejoint la partie ${gameId}`);
     } else {
       socket.emit('joinError', 'Partie inexistante ou déjà pleine');
     }
   });
 
-  socket.on('makeMove', ({ gameId, fromX, fromY, toX, toY }) => {
+  socket.on('makeMove', ({ gameId, hole }) => {
     const game = games.get(gameId);
     if (!game || game.status !== 'playing') return;
     
@@ -146,25 +150,56 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const result = executeMove(game.board, fromX, fromY, toX, toY, game.currentTurn);
+    // Vérifier que le trou appartient bien au joueur
+    const isValidHole = (playerColor === 'N' && hole >= 0 && hole < 6) ||
+                        (playerColor === 'S' && hole >= 6 && hole < 12);
     
-    if (result.success) {
-      game.board = result.board;
-      
-      const winner = checkVictory(game.board);
-      if (winner) {
-        game.status = 'finished';
-        io.to(gameId).emit('gameOver', { winner, board: game.board });
-      } else {
-        game.currentTurn = game.currentTurn === 'B' ? 'N' : 'B';
-        io.to(gameId).emit('moveMade', {
-          board: game.board,
-          currentTurn: game.currentTurn,
-          captured: result.captured
-        });
-      }
+    if (!isValidHole) {
+      socket.emit('moveError', 'Trou invalide');
+      return;
+    }
+    
+    if (game.board[hole] === 0) {
+      socket.emit('moveError', 'Ce trou est vide');
+      return;
+    }
+    
+    const result = executeMove(game.board, hole, playerColor);
+    game.board = result.board;
+    
+    // Mettre à jour les scores
+    if (playerColor === 'N') {
+      game.nordScore += result.captured;
     } else {
-      socket.emit('moveError', 'Déplacement invalide');
+      game.sudScore += result.captured;
+    }
+    
+    // Ajouter à l'historique
+    const moveDesc = `${playerColor === 'N' ? 'Nord' : 'Sud'} joue trou ${(hole % 6) + 1}, capture ${result.captured}`;
+    game.history.unshift(moveDesc);
+    if (game.history.length > 20) game.history.pop();
+    
+    // Vérifier victoire
+    const winner = checkVictory(game.board, game.currentTurn);
+    if (winner) {
+      game.status = 'finished';
+      io.to(gameId).emit('gameOver', { 
+        winner, 
+        board: game.board,
+        nordScore: game.nordScore,
+        sudScore: game.sudScore
+      });
+    } else {
+      game.currentTurn = game.currentTurn === 'N' ? 'S' : 'N';
+      io.to(gameId).emit('moveMade', {
+        board: game.board,
+        currentTurn: game.currentTurn,
+        nordScore: game.nordScore,
+        sudScore: game.sudScore,
+        history: game.history,
+        lastMove: moveDesc,
+        captured: result.captured
+      });
     }
   });
 
@@ -172,13 +207,23 @@ io.on('connection', (socket) => {
     const game = games.get(gameId);
     if (game) {
       game.board = initializeBoard();
-      game.currentTurn = 'B';
+      game.currentTurn = 'N';
       game.status = 'playing';
-      io.to(gameId).emit('gameReset', { board: game.board, currentTurn: 'B' });
+      game.nordScore = 0;
+      game.sudScore = 0;
+      game.history = [];
+      io.to(gameId).emit('gameReset', { 
+        board: game.board, 
+        currentTurn: 'N',
+        nordScore: 0,
+        sudScore: 0,
+        history: []
+      });
     }
   });
 
   socket.on('disconnect', () => {
+    console.log('👋 Joueur déconnecté:', socket.id);
     for (const [gameId, game] of games.entries()) {
       if (game.players.includes(socket.id)) {
         io.to(gameId).emit('playerDisconnected');
@@ -191,5 +236,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Serveur 3D démarré sur http://localhost:${PORT}`);
+  console.log(`🚀 Serveur Awélé démarré sur http://localhost:${PORT}`);
 });
