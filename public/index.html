@@ -2,685 +2,150 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Songho - Jeu de stratégie</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            font-family: 'Courier New', 'Fira Code', monospace;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .terminal {
-            background: #0a0e27;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            overflow: hidden;
-            max-width: 800px;
-            width: 100%;
-        }
-        
-        .terminal-header {
-            background: #1a1f3a;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #2a2f4a;
-        }
-        
-        .terminal-title {
-            color: #00ff88;
-            font-weight: bold;
-            font-size: 1.2em;
-        }
-        
-        .terminal-buttons {
-            display: flex;
-            gap: 8px;
-        }
-        
-        .terminal-btn {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-        
-        .terminal-btn.red { background: #ff5f56; }
-        .terminal-btn.yellow { background: #ffbd2e; }
-        .terminal-btn.green { background: #27c93f; }
-        
-        .terminal-content {
-            padding: 20px;
-            font-family: 'Courier New', 'Fira Code', monospace;
-            color: #00ff88;
-            background: #0a0e27;
-            overflow-x: auto;
-        }
-        
-        pre {
-            font-family: 'Courier New', 'Fira Code', monospace;
-            font-size: 14px;
-            line-height: 1.4;
-            color: #00ff88;
-            text-shadow: 0 0 2px #00ff88;
-            margin: 0;
-            white-space: pre;
-        }
-        
-        .game-info {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #1a2a4a;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .info-card {
-            background: #0a0e27;
-            border: 1px solid #1a2a4a;
-            padding: 10px 15px;
-            border-radius: 8px;
-        }
-        
-        .info-label {
-            color: #5a6a8a;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .info-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ff88;
-        }
-        
-        .input-area {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .input-area input {
-            flex: 1;
-            background: #0f1433;
-            border: 1px solid #1a2f4a;
-            color: #00ff88;
-            padding: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            border-radius: 5px;
-        }
-        
-        .input-area input:focus {
-            outline: none;
-            border-color: #00ff88;
-        }
-        
-        .input-area button {
-            background: #1a2a4a;
-            border: 1px solid #00ff88;
-            color: #00ff88;
-            padding: 10px 20px;
-            font-family: monospace;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.2s;
-        }
-        
-        .input-area button:hover {
-            background: #00ff88;
-            color: #0a0e27;
-        }
-        
-        .commands {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .cmd-btn {
-            background: transparent;
-            border: 1px solid #2a3f5a;
-            color: #5a7a9a;
-            padding: 5px 12px;
-            font-family: monospace;
-            font-size: 11px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        
-        .cmd-btn:hover {
-            border-color: #00ff88;
-            color: #00ff88;
-        }
-        
-        .turn-indicator {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #0f1433;
-            border-left: 3px solid #00ff88;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .cursor {
-            display: inline-block;
-            width: 10px;
-            height: 15px;
-            background: #00ff88;
-            vertical-align: middle;
-            margin-left: 2px;
-            animation: blink 1s infinite;
-        }
-        
-        .warning {
-            color: #ffaa00;
-        }
-        
-        .error {
-            color: #ff5555;
-        }
-        
-        .success {
-            color: #55ff55;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SONGHO - Jeu de Stratégie Africain</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="terminal">
-    <div class="terminal-header">
-        <div class="terminal-buttons">
-            <div class="terminal-btn red"></div>
-            <div class="terminal-btn yellow"></div>
-            <div class="terminal-btn green"></div>
-        </div>
-        <div class="terminal-title">SONGHO v1.0 - Jeu de Stratégie</div>
-        <div></div>
-    </div>
-    <div class="terminal-content">
-        <pre id="boardDisplay"></pre>
-        
-        <div class="game-info">
-            <div class="info-card">
-                <div class="info-label">JOUEUR BLANC (⚪)</div>
-                <div class="info-value" id="whiteScore">12</div>
+    <div class="crt-overlay"></div>
+    <div class="scanline"></div>
+    
+    <div class="container">
+        <div class="terminal-header">
+            <div class="terminal-controls">
+                <span class="control red"></span>
+                <span class="control yellow"></span>
+                <span class="control green"></span>
             </div>
-            <div class="info-card">
-                <div class="info-label">JOUEUR NOIR (⚫)</div>
-                <div class="info-value" id="blackScore">12</div>
+            <div class="terminal-title">
+                <span class="blink">▶</span> SONGHO v2.0 - TERMINAL STRATEGY
             </div>
-            <div class="info-card">
-                <div class="info-label">TOUR</div>
-                <div class="info-value" id="turnInfo">BLANC</div>
-            </div>
+            <div class="terminal-status" id="connectionStatus">● LOCAL</div>
         </div>
-        
-        <div class="input-area">
-            <input type="text" id="commandInput" placeholder="Entrez votre commande (ex: A1 B2, ou 'aide')" autocomplete="off">
-            <button id="submitBtn">▶ JOUER</button>
-        </div>
-        
-        <div class="commands">
-            <button class="cmd-btn" data-cmd="aide">📖 AIDE</button>
-            <button class="cmd-btn" data-cmd="plateau">🎯 AFFICHER</button>
-            <button class="cmd-btn" data-cmd="score">📊 SCORE</button>
-            <button class="cmd-btn" data-cmd="reset">🔄 NOUVELLE PARTIE</button>
-            <button class="cmd-btn" data-cmd="regles">📜 RÈGLES</button>
-        </div>
-        
-        <div id="messageArea" style="margin-top: 15px; font-size: 12px; color: #7a8aaa;"></div>
-        <div id="prompt" style="margin-top: 10px;">&gt; <span id="cursorText"></span><span class="cursor"></span></div>
-    </div>
-</div>
 
-<script>
-    // ============================================
-    // SONGHO - Version Terminal ASCII
-    // Représentation comme dans l'exemple NORD/SUD
-    // ============================================
-    
-    let board = Array(5).fill().map(() => Array(5).fill(null));
-    let currentTurn = 'B'; // 'B' = Blanc, 'N' = Noir
-    let selectedPiece = null;
-    let gameOver = false;
-    let winner = null;
-    
-    // Correspondance des colonnes (A B C D E)
-    const colMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4 };
-    const reverseColMap = { 0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E' };
-    
-    // Initialisation du plateau
-    function initBoard() {
-        board = Array(5).fill().map(() => Array(5).fill(null));
-        
-        // Pions blancs (NORD - lignes 1 et 2)
-        for (let i = 0; i < 2; i++) {
-            for (let j = 0; j < 5; j++) {
-                board[i][j] = 'B';
-            }
-        }
-        board[2][0] = 'B';
-        board[2][4] = 'B';
-        
-        // Pions noirs (SUD - lignes 4 et 5)
-        for (let i = 3; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                board[i][j] = 'N';
-            }
-        }
-        // Correction: le pion noir en [2][0] serait écrasé, on le garde blanc
-        // et on place le noir aux positions [2][0]? Non selon les règles classiques
-        board[2][1] = null;
-        board[2][2] = null;
-        board[2][3] = null;
-    }
-    
-    // Afficher le plateau en ASCII (style NORD/SUD)
-    function displayBoard() {
-        let output = '';
-        
-        // En-tête NORD
-        output += '╔════════════════════════════════════════════════╗\n';
-        output += '║                    NORD                        ║\n';
-        output += '╠════════════════════════════════════════════════╣\n';
-        output += '║     A   B   C   D   E     │     A   B   C   D   E ║\n';
-        output += '║   ┌───┬───┬───┬───┬───┐   │   ┌───┬───┬───┬───┬───┐ ║\n';
-        
-        // Lignes 1 à 5
-        for (let i = 0; i < 5; i++) {
-            let rowLeft = '';
-            let rowRight = '';
+        <div class="game-header">
+            <div class="mode-switch">
+                <button id="localModeBtn" class="mode-btn active">
+                    <span class="icon">👥</span> LOCAL (2 joueurs)
+                </button>
+                <button id="onlineModeBtn" class="mode-btn">
+                    <span class="icon">🌍</span> MULTIJOUEUR
+                </button>
+            </div>
             
-            for (let j = 0; j < 5; j++) {
-                let piece = board[i][j];
-                let symbol = '   ';
-                if (piece === 'B') symbol = ' ○ ';
-                if (piece === 'N') symbol = ' ● ';
-                rowLeft += `│${symbol}`;
-            }
-            rowLeft += '│';
-            
-            // Miroir pour côté droit (optionnel)
-            for (let j = 0; j < 5; j++) {
-                let piece = board[i][j];
-                let symbol = '   ';
-                if (piece === 'B') symbol = ' ○ ';
-                if (piece === 'N') symbol = ' ● ';
-                rowRight += `│${symbol}`;
-            }
-            rowRight += '│';
-            
-            let lineNum = i + 1;
-            output += `║ ${lineNum} ${rowLeft}   │ ${lineNum} ${rowRight} ║\n`;
-            
-            if (i < 4) {
-                output += `║   ├───┼───┼───┼───┼───┤   │   ├───┼───┼───┼───┼───┤ ║\n`;
-            }
-        }
-        
-        output += '║   └───┴───┴───┴───┴───┘   │   └───┴───┴───┴───┴───┘ ║\n';
-        output += '╠════════════════════════════════════════════════╣\n';
-        output += '║                    SUD                        ║\n';
-        output += '╚════════════════════════════════════════════════╝\n';
-        
-        return output;
-    }
-    
-    // Affichage simplifié comme dans l'image
-    function displayBoardSimple() {
-        let output = '';
-        output += '┌─────────────────────────────────────┐\n';
-        output += '│              NORD                   │\n';
-        output += '├─────────────────────────────────────┤\n';
-        output += '│     A   B   C   D   E               │\n';
-        output += '│   ┌───┬───┬───┬───┬───┐             │\n';
-        
-        for (let i = 0; i < 5; i++) {
-            let row = `${i+1}  `;
-            for (let j = 0; j < 5; j++) {
-                let piece = board[i][j];
-                if (piece === 'B') row += '│ ○ ';
-                else if (piece === 'N') row += '│ ● ';
-                else row += '│   ';
-            }
-            row += '│';
-            output += `│ ${row}             │\n`;
-            if (i < 4) {
-                output += '│   ├───┼───┼───┼───┼───┤             │\n';
-            }
-        }
-        
-        output += '│   └───┴───┴───┴───┴───┘             │\n';
-        output += '├─────────────────────────────────────┤\n';
-        output += '│              SUD                    │\n';
-        output += '└─────────────────────────────────────┘\n';
-        
-        return output;
-    }
-    
-    // Affichage ultra simplifié (comme dans l'exemple)
-    function displayBoardMinimal() {
-        let output = '';
-        output += '\n';
-        output += '    NORD\n';
-        output += '    S7  S6  S5  S4  S3  S2  S1\n';
-        output += '    ┌───┬───┬───┬───┬───┬───┬───┐\n';
-        
-        for (let i = 0; i < 5; i++) {
-            let rowNum = 5 - i;
-            let row = `${rowNum}   `;
-            for (let j = 0; j < 5; j++) {
-                let piece = board[i][j];
-                if (piece === 'B') row += '│ ○ ';
-                else if (piece === 'N') row += '│ ● ';
-                else row += '│   ';
-            }
-            row += '│';
-            output += `${row}\n`;
-            if (i < 4) {
-                output += '    ├───┼───┼───┼───┼───┼───┼───┤\n';
-            }
-        }
-        
-        output += '    └───┴───┴───┴───┴───┴───┴───┘\n';
-        output += '    SUD\n';
-        output += '    A vous de jouer\n';
-        
-        return output;
-    }
-    
-    // Mise à jour complète de l'affichage
-    function refreshDisplay() {
-        const boardElem = document.getElementById('boardDisplay');
-        boardElem.textContent = displayBoardMinimal();
-        
-        // Mettre à jour les scores
-        let whiteCount = 0, blackCount = 0;
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                if (board[i][j] === 'B') whiteCount++;
-                if (board[i][j] === 'N') blackCount++;
-            }
-        }
-        document.getElementById('whiteScore').textContent = whiteCount;
-        document.getElementById('blackScore').textContent = blackCount;
-        document.getElementById('turnInfo').textContent = currentTurn === 'B' ? 'BLANC (○)' : 'NOIR (●)';
-        
-        updateCursor();
-    }
-    
-    function updateCursor() {
-        const cursorSpan = document.getElementById('cursorText');
-        if (!gameOver) {
-            cursorSpan.textContent = currentTurn === 'B' ? '○ ' : '● ';
-        } else {
-            cursorSpan.textContent = winner === 'B' ? '🏆 BLANC' : '🏆 NOIR';
-        }
-    }
-    
-    // Validation et exécution d'un mouvement
-    function isValidMove(fromX, fromY, toX, toY, color) {
-        // Vérifier case destination vide
-        if (toX < 0 || toX > 4 || toY < 0 || toY > 4) return false;
-        if (board[toX][toY] !== null) return false;
-        
-        const dx = Math.abs(toX - fromX);
-        const dy = Math.abs(toY - fromY);
-        
-        // Déplacement adjacent
-        if (dx + dy === 1) return true;
-        
-        // Capture par saut
-        if ((dx === 2 && dy === 0) || (dx === 0 && dy === 2)) {
-            const midX = (fromX + toX) / 2;
-            const midY = (fromY + toY) / 2;
-            const midPiece = board[midX][midY];
-            if (midPiece && midPiece !== color) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    function executeMove(fromX, fromY, toX, toY) {
-        const piece = board[fromX][fromY];
-        if (!piece || piece !== currentTurn) return { success: false, message: "Ce n'est pas votre pion !" };
-        if (gameOver) return { success: false, message: "Partie terminée !" };
-        
-        if (!isValidMove(fromX, fromY, toX, toY, currentTurn)) {
-            return { success: false, message: "Déplacement invalide !" };
-        }
-        
-        // Effectuer le déplacement
-        board[toX][toY] = piece;
-        board[fromX][fromY] = null;
-        
-        let message = "";
-        
-        // Vérifier capture
-        const dx = toX - fromX;
-        const dy = toY - fromY;
-        if (Math.abs(dx) === 2 || Math.abs(dy) === 2) {
-            const midX = fromX + dx/2;
-            const midY = fromY + dy/2;
-            if (midX >= 0 && midX <= 4 && midY >= 0 && midY <= 4) {
-                const midPiece = board[midX][midY];
-                if (midPiece && midPiece !== piece) {
-                    board[midX][midY] = null;
-                    message = `Capture ! Pion ${midPiece === 'B' ? 'blanc' : 'noir'} éliminé.`;
-                }
-            }
-        }
-        
-        // Vérifier alignement de 3
-        if (checkAlignment(toX, toY, piece)) {
-            message += ` Alignement de 3 pions ! (Bonus: vous pouvez retirer un pion adverse)`;
-            // Ici on pourrait implémenter le retrait
-        }
-        
-        // Vérifier victoire
-        const victoire = checkVictory();
-        if (victoire) {
-            gameOver = true;
-            winner = victoire;
-            message += ` VICTOIRE ! Les ${victoire === 'B' ? 'BLANCS' : 'NOIRS'} gagnent !`;
-        } else {
-            currentTurn = currentTurn === 'B' ? 'N' : 'B';
-        }
-        
-        refreshDisplay();
-        return { success: true, message: message || "Mouvement effectué !" };
-    }
-    
-    function checkAlignment(x, y, color) {
-        // Horizontal
-        let count = 1;
-        for (let i = x+1; i < 5 && board[i][y] === color; i++) count++;
-        for (let i = x-1; i >= 0 && board[i][y] === color; i--) count++;
-        if (count >= 3) return true;
-        
-        // Vertical
-        count = 1;
-        for (let j = y+1; j < 5 && board[x][j] === color; j++) count++;
-        for (let j = y-1; j >= 0 && board[x][j] === color; j--) count++;
-        if (count >= 3) return true;
-        
-        return false;
-    }
-    
-    function checkVictory() {
-        let whiteCount = 0, blackCount = 0;
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                if (board[i][j] === 'B') whiteCount++;
-                if (board[i][j] === 'N') blackCount++;
-            }
-        }
-        if (whiteCount === 0) return 'N';
-        if (blackCount === 0) return 'B';
-        return null;
-    }
-    
-    // Parser la commande (ex: "A1 B2" ou "a1 b2")
-    function parseCommand(cmd) {
-        cmd = cmd.trim().toUpperCase();
-        const parts = cmd.split(/\s+/);
-        if (parts.length === 0) return null;
-        
-        if (parts[0] === 'AIDE' || parts[0] === 'HELP' || parts[0] === '?') {
-            return { action: 'help' };
-        }
-        if (parts[0] === 'PLATEAU' || parts[0] === 'BOARD') {
-            return { action: 'board' };
-        }
-        if (parts[0] === 'SCORE') {
-            return { action: 'score' };
-        }
-        if (parts[0] === 'RESET') {
-            return { action: 'reset' };
-        }
-        if (parts[0] === 'REGLES') {
-            return { action: 'rules' };
-        }
-        
-        // Format "A1 B2"
-        if (parts.length >= 2) {
-            const fromMatch = parts[0].match(/^([A-E])([1-5])$/);
-            const toMatch = parts[1].match(/^([A-E])([1-5])$/);
-            
-            if (fromMatch && toMatch) {
-                return {
-                    action: 'move',
-                    fromX: parseInt(fromMatch[2]) - 1,
-                    fromY: colMap[fromMatch[1]],
-                    toX: parseInt(toMatch[2]) - 1,
-                    toY: colMap[toMatch[1]]
-                };
-            }
-        }
-        
-        return null;
-    }
-    
-    function processCommand(cmdText) {
-        const cmd = parseCommand(cmdText);
-        if (!cmd) {
-            showMessage("Commande invalide. Ex: A1 B2  |  aide  |  reset", "error");
-            return;
-        }
-        
-        switch(cmd.action) {
-            case 'help':
-                showMessage("Commandes: [A1 B2] pour déplacer | reset | score | plateau | regles", "success");
-                break;
-            case 'board':
-                document.getElementById('boardDisplay').textContent = displayBoard();
-                showMessage("Affichage détaillé activé", "info");
-                break;
-            case 'score':
-                showMessage("Utilisez l'affichage en haut à droite", "info");
-                break;
-            case 'reset':
-                resetGame();
-                showMessage("Nouvelle partie !", "success");
-                break;
-            case 'rules':
-                showRules();
-                break;
-            case 'move':
-                const result = executeMove(cmd.fromX, cmd.fromY, cmd.toX, cmd.toY);
-                showMessage(result.message, result.success ? "success" : "error");
-                break;
-        }refreshDisplay();
-        document.getElementById('commandInput').value = '';
-        document.getElementById('commandInput').focus();
-    }
-    
-    function showMessage(msg, type) {
-        const msgArea = document.getElementById('messageArea');
-        msgArea.innerHTML = `<span class="${type}">${msg}</span>`;
-        setTimeout(() => {
-            if (msgArea.innerHTML === `<span class="${type}">${msg}</span>`) {
-                msgArea.innerHTML = '';
-            }
-        }, 5000);
-    }
-    
-    function showRules() {
-        const rules = `
-╔══════════════════════════════════════════════════════╗
-║                    RÈGLES DU SONGHO                  ║
-╠══════════════════════════════════════════════════════╣
-║ • Objectif : Capturer tous les pions adverses       ║
-║ • Déplacement : 1 case (horizontal ou vertical)     ║
-║ • Capture : Saut par-dessus un pion adverse         ║
-║ • Alignement : 3 pions alignés → retirez un pion    ║
-║ • Victoire : Plus de pions ou plus de mouvements    ║
-╚══════════════════════════════════════════════════════╝
-        `;
-        document.getElementById('boardDisplay').textContent = rules;
-        setTimeout(() => refreshDisplay(), 8000);
-        showMessage("Affichage des règles (8 secondes)", "info");
-    }
-    
-    function resetGame() {
-        initBoard();
-        currentTurn = 'B';
-        gameOver = false;
-        winner = null;
-        selectedPiece = null;
-        refreshDisplay();
-                    }
-    / Événements
-    document.getElementById('submitBtn').addEventListener('click', () => {
-        const input = document.getElementById('commandInput');
-        if (input.value.trim()) processCommand(input.value);
-    });
-    
-    document.getElementById('commandInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const input = document.getElementById('commandInput');
-            if (input.value.trim()) processCommand(input.value);
-        }
-    });
-    
-    document.querySelectorAll('.cmd-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const cmd = btn.getAttribute('data-cmd');
-            if (cmd === 'reset') resetGame();
-            else if (cmd === 'aide') showMessage("Commandes: [A1 B2] | reset | plateau | regles", "success");
-            else if (cmd === 'plateau') document.getElementById('boardDisplay').textContent = displayBoard();
-            else if (cmd === 'score') showMessage(`Blancs: ${document.getElementById('whiteScore').textContent} | Noirs: ${document.getElementById('blackScore').textContent}`, "info");
-            else if (cmd === 'regles') showRules();
-            refreshDisplay();
-            document.getElementById('commandInput').focus();
-        });
-    });
-    
-    // Initialisation
-    initBoard();
-    refreshDisplay();
-    document.getElementById('commandInput').focus();
-</script>
+            <div id="onlinePanel" class="online-panel hidden">
+                <div class="online-card">
+                    <div class="card-header">
+                        <span class="icon">🎮</span> SALLE D'ATTENTE
+                    </div>
+                    <div class="card-body">
+                        <button id="createGameBtn" class="action-btn primary">
+                            ✨ CRÉER UNE PARTIE
+                        </button>
+                        <div class="divider">OU</div>
+                        <div class="join-group">
+                            <input type="text" id="gameIdInput" placeholder="CODE DE PARTIE" maxlength="6" class="code-input">
+                            <button id="joinGameBtn" class="action-btn secondary">
+                                🔗 REJOINDRE
+                            </button>
+                        </div>
+                        <div id="gameStatus" class="game-status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="player-card player-north">
+                <div class="player-label">
+                    <span class="direction">⚡ NORD</span>
+                    <span class="player-name">STRATÈGE BLANC</span>
+                </div>
+                <div class="piece-counter">
+                    <div class="piece-icon white"></div>
+                    <span id="whiteScore" class="counter-value">12</span>
+                </div>
+            </div>
+
+            <div class="board-wrapper">
+                <div class="board-decoration top"></div>
+                <div class="board-container">
+                    <canvas id="gameCanvas" width="550" height="550"></canvas>
+                    <div id="turnIndicator" class="turn-indicator">
+                        <span class="turn-label">TOUR DE JEU</span>
+                        <div class="turn-piece-container">
+                            <div id="turnPiece" class="turn-piece"></div>
+                            <span id="turnText" class="turn-text">BLANC</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="board-decoration bottom"></div>
+            </div>
+
+            <div class="player-card player-south">
+                <div class="player-label">
+                    <span class="direction">⚡ SUD</span>
+                    <span class="player-name">STRATÈGE NOIR</span>
+                </div>
+                <div class="piece-counter">
+                    <div class="piece-icon black"></div>
+                    <span id="blackScore" class="counter-value">12</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="command-bar">
+            <div class="command-prompt">
+                <span class="prompt-symbol">❯❯</span>
+                <span id="promptText" class="prompt-text">sélectionnez un pion...</span>
+                <span class="cursor"></span>
+            </div>
+            <div class="action-buttons">
+                <button id="resetGameBtn" class="cmd-btn">
+                    <span class="icon">🔄</span> RESET
+                </button>
+                <button id="rulesBtn" class="cmd-btn">
+                    <span class="icon">📜</span> RÈGLES
+                </button>
+            </div>
+        </div>
+
+        <div class="log-area" id="logArea">
+            <div class="log-entry system">🟢 SYSTEME: Jeu initialisé. Les blancs commencent.</div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="messageModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-icon" id="modalIcon">🏆</span>
+                <h2 id="modalTitle">Information</h2>
+            </div>
+            <p id="modalMessage"></p>
+            <button id="modalCloseBtn" class="modal-btn">COMPRIS</button>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="modal hidden">
+        <div class="modal-content rules-modal">
+            <div class="modal-header">
+                <span class="modal-icon">📖</span>
+                <h2>CODE DU STRATÈGE</h2>
+            </div>
+            <div class="rules-list">
+                <div class="rule-item"><span class="rule-num">01</span> L'objectif est de capturer ou bloquer tous les pions adverses.</div>
+                <div class="rule-item"><span class="rule-num">02</span> Déplacement d'une case (horizontal ou vertical).</div>
+                <div class="rule-item"><span class="rule-num">03</span> Capture par saut par-dessus un pion adverse.</div>
+                <div class="rule-item"><span class="rule-num">04</span> 3 pions alignés permettent de retirer un pion adverse.</div>
+                <div class="rule-item"><span class="rule-num">05</span> Victoire: plus aucun pion adverse ne peut se déplacer.</div>
+            </div>
+            <button id="rulesCloseBtn" class="modal-btn">⚔️ EN GUERRE ⚔️</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
-</html>
+    </html>
