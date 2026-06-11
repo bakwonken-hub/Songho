@@ -3,230 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SONGHO - Jeu de semis africain</title>
+    <title>SONGHO- Jeu de semis africain (7 cases, 5 graines)</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Cinema+Decorative&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Cinema+Decorative&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar gauche - Informations -->
-        <div class="sidebar left">
-            <div class="logo-area">
-                <h1>⚡ SONGHO ⚡</h1>
-                <p class="subtitle">Jeu de stratégie africain</p>
-            </div>
-            
-            <div class="info-card">
-                <div class="info-header">
-                    <span class="icon">📋</span>
-                    <span>INFORMATIONS</span>
+    <div class="app-wrapper">
+        <!-- Overlay d'inscription -->
+        <div id="registerOverlay" class="register-overlay">
+            <div class="register-card">
+                <div class="register-header">
+                    <span class="register-icon">⚡</span>
+                    <h2>SONGHO - ARENA</h2>
+                    <p>Jeu de stratégie africain</p>
                 </div>
-                <div class="info-content">
-                    <div class="info-row">
-                        <span class="label">JOUEUR</span>
-                        <span class="value" id="playerName">BAKWO NKEN.</span>
+                <div class="register-body">
+                    <div class="input-group">
+                        <label>👤 Nom d'utilisateur</label>
+                        <input type="text" id="registerUsername" placeholder="ex: stratège_guerrier" maxlength="50">
                     </div>
-                    <div class="info-row">
-                        <span class="label">STATUS</span>
-                        <span class="value status" id="gameStatus">EN JEU</span>
+                    <div class="input-group">
+                        <label>🏷️ Pseudo d'affichage</label>
+                        <input type="text" id="registerDisplayName" placeholder="ex: Guerrier du Nord" maxlength="100">
                     </div>
-                    <div class="info-row">
-                        <span class="label">UNIVERSITÉ</span>
-                        <span class="value">UNIVERSITÉ DE YAOUNDÉ 1</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">NIVEAU</span>
-                        <span class="value">LICENCE 2</span>
-                    </div>
+                    <button id="registerBtn" class="register-btn">ENTRER DANS L'ARÈNE</button>
+                </div>
+                <div class="register-footer">
+                    <p>7 cases par joueur • 5 graines par case • Règles traditionnelles</p>
                 </div>
             </div>
-            
-            <div class="menu-card">
-                <div class="menu-item" id="infoBtn">
-                    <span class="icon">ℹ️</span>
-                    <span>INFO</span>
+        </div>
+
+        <!-- Application principale -->
+        <div id="mainApp" class="main-app hidden">
+            <!-- Sidebar gauche -->
+            <div class="sidebar left">
+                <div class="logo-area">
+                    <h1>⚡ SONGHO ⚡</h1>
+                    <p class="version">Édition Légendaire - 7x5</p>
                 </div>
-                <div class="menu-item" id="rulesBtn">
-                    <span class="icon">📜</span>
-                    <span>RÈGLES</span>
+
+                <div class="player-card" id="playerCardNord">
+                    <div class="player-avatar nord-avatar">
+                        <div class="avatar-icon">🦁</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name" id="nordPlayerName">Stratège Nord</div>
+                        <div class="player-stats">
+                            <span class="stat">🏆 <span id="nordWins">0</span></span>
+                            <span class="stat">📊 <span id="nordGames">0</span></span>
+                        </div>
+                    </div>
+                    <div class="player-score" id="nordScoreDisplay">0</div>
                 </div>
-                <div class="menu-item" id="priseBtn">
-                    <span class="icon">⚡</span>
-                    <span>PRISE</span>
+
+                <div class="player-card" id="playerCardSud">
+                    <div class="player-avatar sud-avatar">
+                        <div class="avatar-icon">🐉</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name" id="sudPlayerName">Stratège Sud</div>
+                        <div class="player-stats">
+                            <span class="stat">🏆 <span id="sudWins">0</span></span>
+                            <span class="stat">📊 <span id="sudGames">0</span></span>
+                        </div>
+                    </div>
+                    <div class="player-score" id="sudScoreDisplay">0</div>
                 </div>
-                <div class="menu-item" id="quitBtn">
-                    <span class="icon">🚪</span>
-                    <span>QUITTER</span>
+
+                <div class="menu-card">
+                    <div class="menu-item" id="rulesBtn">
+                        <span class="icon">📖</span>
+                        <span>RÈGLES DU JEU</span>
+                    </div>
+                    <div class="menu-item" id="statsBtn">
+                        <span class="icon">📊</span>
+                        <span>STATISTIQUES</span>
+                    </div>
+                    <div class="menu-item" id="logoutBtn">
+                        <span class="icon">🚪</span>
+                        <span>CHANGER DE JOUEUR</span>
+                    </div>
                 </div>
             </div>
-            
-            <div class="connection-card">
-                <div class="connection-status">
-                    <span class="dot" id="connectionDot"></span>
-                    <span id="connectionText">CONNECTÉ</span>
+
+            <!-- Zone centrale - Plateau -->
+            <div class="game-area">
+                <div class="turn-banner" id="turnBanner">
+                    <div class="turn-content">
+                        <span class="turn-icon">🎯</span>
+                        <span class="turn-text" id="turnText">TOUR DU NORD</span>
+                    </div>
                 </div>
-                <div class="mode-switch">
-                    <button id="localModeBtn" class="mode-btn active">LOCAL</button>
-                    <button id="onlineModeBtn" class="mode-btn">EN LIGNE</button>
+
+                <div class="board-wrapper">
+                    <div class="board">
+                        <!-- Cases Nord (7 cases: indices 0 à 6) -->
+                        <div class="holes nord-holes">
+                            <div class="hole" data-hole="6">
+                                <div class="hole-number">7</div>
+                                <div class="seeds-container" id="seeds-6"></div>
+                                <div class="seeds-count" id="seed-6">5</div>
+                            </div>
+                            <div class="hole" data-hole="5">
+                                <div class="hole-number">6</div>
+                                <div class="seeds-container" id="seeds-5"></div>
+                                <div class="seeds-count" id="seed-5">5</div>
+                            </div>
+                            <div class="hole" data-hole="4">
+                                <div class="hole-number">5</div>
+                                <div class="seeds-container" id="seeds-4"></div>
+                                <div class="seeds-count" id="seed-4">5</div>
+                            </div>
+                            <div class="hole" data-hole="3">
+                                <div class="hole-number">4</div>
+                                <div class="seeds-container" id="seeds-3"></div>
+                                <div class="seeds-count" id="seed-3">5</div>
+                            </div>
+                            <div class="hole" data-hole="2">
+                                <div class="hole-number">3</div>
+                                <div class="seeds-container" id="seeds-2"></div>
+                                <div class="seeds-count" id="seed-2">5</div>
+                            </div>
+                            <div class="hole" data-hole="1">
+                                <div class="hole-number">2</div>
+                                <div class="seeds-container" id="seeds-1"></div>
+                                <div class="seeds-count" id="seed-1">5</div>
+                            </div>
+                            <div class="hole" data-hole="0">
+                                <div class="hole-number">1</div>
+                                <div class="seeds-container" id="seeds-0"></div>
+                                <div class="seeds-count" id="seed-0">5</div>
+                            </div>
+                        </div>
+
+                        <!-- Zone centrale -->
+                        <div class="board-center">
+                            <div class="score-center">
+                                <div class="score-badge nord-badge" id="nordCenterScore">0</div>
+                                <div class="vs-divider">VS</div>
+                                <div class="score-badge sud-badge" id="sudCenterScore">0</div>
+                            </div>
+                        </div>
+
+                        <!-- Cases Sud (7 cases: indices 7 à 13) -->
+                        <div class="holes sud-holes">
+                            <div class="hole" data-hole="7">
+                                <div class="hole-number">1</div>
+                                <div class="seeds-container" id="seeds-7"></div>
+                                <div class="seeds-count" id="seed-7">5</div>
+                            </div>
+                            <div class="hole" data-hole="8">
+                                <div class="hole-number">2</div>
+                                <div class="seeds-container" id="seeds-8"></div>
+                                <div class="seeds-count" id="seed-8">5</div>
+                            </div>
+                            <div class="hole" data-hole="9">
+                                <div class="hole-number">3</div>
+                                <div class="seeds-container" id="seeds-9"></div>
+                                <div class="seeds-count" id="seed-9">5</div>
+                            </div>
+                            <div class="hole" data-hole="10">
+                                <div class="hole-number">4</div>
+                                <div class="seeds-container" id="seeds-10"></div>
+                                <div class="seeds-count" id="seed-10">5</div>
+                            </div>
+                            <div class="hole" data-hole="11">
+                                <div class="hole-number">5</div>
+                                <div class="seeds-container" id="seeds-11"></div>
+                                <div class="seeds-count" id="seed-11">5</div>
+                            </div>
+                            <div class="hole" data-hole="12">
+                                <div class="hole-number">6</div>
+                                <div class="seeds-container" id="seeds-12"></div>
+                                <div class="seeds-count" id="seed-12">5</div>
+                            </div>
+                            <div class="hole" data-hole="13">
+                                <div class="hole-number">7</div>
+                                <div class="seeds-container" id="seeds-13"></div>
+                                <div class="seeds-count" id="seed-13">5</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="game-controls">
+                    <button id="localModeBtn" class="control-btn primary">
+                        <span>👥</span> MODE LOCAL
+                    </button>
+                    <button id="onlineModeBtn" class="control-btn secondary">
+                        <span>🌍</span> MODE EN LIGNE
+                    </button>
+                    <button id="resetGameBtn" class="control-btn danger">
+                        <span>🔄</span> NOUVELLE PARTIE
+                    </button>
+                </div>
+
+                <!-- Panel multijoueur -->
                 <div id="onlinePanel" class="online-panel hidden">
-                    <button id="createGameBtn" class="action-btn">🎮 CRÉER</button>
-                    <div class="join-row">
-                        <input type="text" id="gameIdInput" placeholder="CODE" maxlength="6">
-                        <button id="joinGameBtn" class="action-btn small">🔗</button>
-                    </div>
-                    <div id="gameCodeDisplay" class="game-code"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Zone centrale - Plateau de jeu -->
-        <div class="game-area">
-            <div class="player-info nord">
-                <div class="player-label">
-                    <span class="direction">⬆ NORD ⬆</span>
-                    <span class="player-name">STRATÈGE NORD</span>
-                </div>
-                <div class="seed-counter">
-                    <span class="seed-icon">🟢</span>
-                    <span id="nordScore" class="score-value">0</span>
-                    <span class="seed-label">GRAINES</span>
-                </div>
-            </div>
-            
-            <div class="board-container">
-                <div class="board">
-                    <!-- Trous Nord (joueur du haut) - indices 0 à 5 -->
-                    <div class="holes nord-holes">
-                        <div class="hole" data-hole="5">
-                            <div class="hole-number">6</div>
-                            <div class="seeds-count" id="seed-5">4</div>
-                            <div class="seed-glow"></div>
+                    <div class="online-card">
+                        <div class="online-header">
+                            <span class="icon">🌐</span>
+                            <span>ARÈNE MONDIALE</span>
                         </div>
-                        <div class="hole" data-hole="4">
-                            <div class="hole-number">5</div>
-                            <div class="seeds-count" id="seed-4">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="3">
-                            <div class="hole-number">4</div>
-                            <div class="seeds-count" id="seed-3">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="2">
-                            <div class="hole-number">3</div>
-                            <div class="seeds-count" id="seed-2">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="1">
-                            <div class="hole-number">2</div>
-                            <div class="seeds-count" id="seed-1">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="0">
-                            <div class="hole-number">1</div>
-                            <div class="seeds-count" id="seed-0">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Zone centrale décorative -->
-                    <div class="board-center">
-                        <div class="turn-indicator" id="turnIndicator">
-                            <span class="turn-label">À VOUS DE JOUER</span>
-                            <div class="turn-player" id="turnPlayer">NORD</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Trous Sud (joueur du bas) - indices 6 à 11 -->
-                    <div class="holes sud-holes">
-                        <div class="hole" data-hole="6">
-                            <div class="hole-number">1</div>
-                            <div class="seeds-count" id="seed-6">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="7">
-                            <div class="hole-number">2</div>
-                            <div class="seeds-count" id="seed-7">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="8">
-                            <div class="hole-number">3</div>
-                            <div class="seeds-count" id="seed-8">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="9">
-                            <div class="hole-number">4</div>
-                            <div class="seeds-count" id="seed-9">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="10">
-                            <div class="hole-number">5</div>
-                            <div class="seeds-count" id="seed-10">4</div>
-                            <div class="seed-glow"></div>
-                        </div>
-                        <div class="hole" data-hole="11">
-                            <div class="hole-number">6</div>
-                            <div class="seeds-count" id="seed-11">4</div>
-                            <div class="seed-glow"></div>
+                        <div class="online-body">
+                            <button id="createOnlineGameBtn" class="online-action primary">
+                                ✨ CRÉER UNE PARTIE
+                            </button>
+                            <div class="or-divider">OU</div>
+                            <div class="join-area">
+                                <input type="text" id="gameCodeInput" placeholder="CODE DE PARTIE" maxlength="6" class="code-input">
+                                <button id="joinOnlineGameBtn" class="online-action secondary">
+                                    🔗 REJOINDRE
+                                </button>
+                            </div>
+                            <div id="onlineGameStatus" class="online-status"></div>
+                            <div id="gameCodeDisplay" class="game-code-display"></div>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="player-info sud">
-                <div class="player-label">
-                    <span class="direction">⬇ SUD ⬇</span>
-                    <span class="player-name">STRATÈGE SUD</span>
+
+            <!-- Sidebar droite - Historique -->
+            <div class="sidebar right">
+                <div class="history-card">
+                    <div class="history-header">
+                        <span class="icon">📜</span>
+                        <span>HISTORIQUE DES COUPS</span>
+                        <span class="badge">EN DIRECT</span>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <div class="history-empty">Aucun coup pour le moment</div>
+                    </div>
                 </div>
-                <div class="seed-counter">
-                    <span class="seed-icon">🟢</span>
-                    <span id="sudScore" class="score-value">0</span>
-                    <span class="seed-label">GRAINES</span>
+
+                <div class="capture-card">
+                    <div class="capture-header">
+                        <span class="icon">⚡</span>
+                        <span>DERNIÈRE CAPTURE</span>
+                    </div>
+                    <div class="capture-content" id="lastCapture">
+                        <span class="capture-value">0</span>
+                        <span class="capture-label">graines</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Sidebar droite - Historique -->
-        <div class="sidebar right">
-            <div class="history-card">
-                <div class="history-header">
-                    <span class="icon">📜</span>
-                    <span>HISTORIQUE</span>
-                    <span class="badge">DERNIERS COUPS</span>
-                </div>
-                <div class="history-list" id="historyList">
-                    <div class="history-empty">Aucun coup pour le moment</div>
-                </div>
-            </div>
-            
-            <div class="stats-card">
-                <div class="stat-item">
-                    <span class="stat-label">VOTRE CAMP</span>
-                    <span class="stat-value" id="yourCamp">NORD</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">GRAINES</span>
-                    <span class="stat-value" id="yourSeeds">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">ADVERSAIRE</span>
-                    <span class="stat-value" id="opponentSeeds">0</span>
-                </div>
-            </div>
-            
-            <div class="last-move-card" id="lastMoveCard">
-                <div class="last-move-header">
-                    <span class="icon">🔄</span>
-                    <span>DERNIER COUP</span>
-                </div>
-                <div class="last-move-content" id="lastMoveContent">
-                    Aucun coup
+
+                <div class="info-card">
+                    <div class="info-header">
+                        <span class="icon">ℹ️</span>
+                        <span>INFORMATIONS</span>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-row">
+                            <span>📌 Version</span>
+                            <span>7 cases - 5 graines</span>
+                        </div>
+                        <div class="info-row">
+                            <span>🎯 Objectif</span>
+                            <span>50 graines</span>
+                        </div>
+                        <div class="info-row">
+                            <span>👥 Mode</span>
+                            <span id="modeDisplay">Local</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Modals -->
     <div id="messageModal" class="modal hidden">
         <div class="modal-content">
@@ -235,29 +280,29 @@
                 <h2 id="modalTitle">Information</h2>
             </div>
             <p id="modalMessage"></p>
-            <button id="modalCloseBtn" class="modal-btn">COMPRIS</button>
+            <button id="modalCloseBtn" class="modal-btn">FERMER</button>
         </div>
     </div>
-    
+
     <div id="rulesModal" class="modal hidden">
         <div class="modal-content rules-modal">
             <div class="modal-header">
                 <span class="modal-icon">📖</span>
-                <h2>RÈGLES DU SONGHO</h2>
+                <h2>RÈGLES DE L'AWÉLÉ</h2>
             </div>
             <div class="rules-list">
-                <div class="rule-item"><span class="rule-num">01</span> Chaque joueur possède 6 trous contenant 4 graines au départ.</div>
-                <div class="rule-item"><span class="rule-num">02</span> À son tour, le joueur prend toutes les graines d'un de ses trous.</div>
-                <div class="rule-item"><span class="rule-num">03</span> Il les distribue une à une dans les trous suivants (sens horaire).</div>
-                <div class="rule-item"><span class="rule-num">04</span> Si la dernière graine tombe dans un trou adverse contenant 2 ou 3 graines, le joueur capture ces graines.</div>
-                <div class="rule-item"><span class="rule-num">05</span> Le jeu se termine quand un joueur n'a plus de graines.</div>
-                <div class="rule-item"><span class="rule-num">06</span> Le vainqueur est celui qui a capturé le plus de graines (≥ 25).</div>
+                <div class="rule-item"><span class="rule-num">01</span> 7 cases par joueur, 5 graines par case au départ.</div>
+                <div class="rule-item"><span class="rule-num">02</span> À son tour, prenez toutes les graines d'une de vos cases.</div>
+                <div class="rule-item"><span class="rule-num">03</span> Distribuez-les une à une dans les cases suivantes (dans le sens horaire).</div>
+                <div class="rule-item"><span class="rule-num">04</span> Si la dernière graine tombe dans une case adverse contenant 2 ou 3 graines, vous les capturez.</div>
+                <div class="rule-item"><span class="rule-num">05</span> Le jeu se termine quand un joueur n'a plus de graines ou atteint 50 points.</div>
+                <div class="rule-item"><span class="rule-num">06</span> Le vainqueur est celui qui a capturé le plus de graines.</div>
             </div>
-            <button id="rulesCloseBtn" class="modal-btn">JOUER</button>
+            <button id="rulesCloseBtn" class="modal-btn">J'AI COMPRIS</button>
         </div>
     </div>
-    
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
+</html>
