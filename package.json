@@ -1,7 +1,7 @@
 {
-  "name": "songho-game",
-  "version": "2.0.0",
-  "description": "Songho - Jeu de stratégie africain avec interface terminal moderne et multijoueur",
+  "name": "songho-3d",
+  "version": "3.0.0",
+  "description": "Songho - Jeu de stratégie africain en 3D avec multijoueur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,7 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["songho", "board-game", "strategy", "multiplayer", "african-game"],
-  "author": "Songho Game",
+  "keywords": ["songho", "3d", "threejs", "board-game", "multiplayer"],
+  "author": "Songho 3D",
   "license": "MIT"
 }
