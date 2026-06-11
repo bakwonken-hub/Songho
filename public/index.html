@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Songho - Jeu de Stratégie Africain</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinema+Decorative&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚔️ SONGHO ⚔️</h1>
+            <p class="subtitle">Jeu de stratégie traditionnel d'Afrique centrale</p>
+        </header>
+
+        <div class="game-mode">
+            <button id="localModeBtn" class="mode-btn active">👥 2 Joueurs (Local)</button>
+            <button id="onlineModeBtn" class="mode-btn">🌍 Multijoueur (En ligne)</button>
+        </div>
+
+        <div id="onlinePanel" class="online-panel hidden">
+            <div class="online-controls">
+                <button id="createGameBtn" class="action-btn">🎮 Créer une partie</button>
+                <div class="join-section">
+                    <input type="text" id="gameIdInput" placeholder="Code de partie" maxlength="6">
+                    <button id="joinGameBtn" class="action-btn">🔗 Rejoindre</button>
+                </div>
+            </div>
+            <div id="gameStatus" class="game-status"></div>
+        </div>
+
+        <div class="game-container">
+            <div class="player-info player-white">
+                <div class="player-avatar">
+                    <div class="piece white"></div>
+                    <span class="player-name">JOUEUR BLANC</span>
+                </div>
+                <div id="whiteScore" class="piece-count">12</div>
+            </div>
+
+            <div class="board-container">
+                <canvas id="gameCanvas" width="500" height="500"></canvas>
+                <div id="turnIndicator" class="turn-indicator">
+                    <span>Tour du Joueur</span>
+                    <div class="turn-piece"></div>
+                </div>
+            </div>
+
+            <div class="player-info player-black">
+                <div class="player-avatar">
+                    <div class="piece black"></div>
+                    <span class="player-name">JOUEUR NOIR</span>
+                </div>
+                <div id="blackScore" class="piece-count">12</div>
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <button id="resetGameBtn" class="control-btn">🔄 Nouvelle partie</button>
+            <button id="rulesBtn" class="control-btn">📖 Règles du jeu</button>
+        </div>
+
+        <div id="messageModal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="modalTitle"></h2>
+                <p id="modalMessage"></p>
+                <button id="modalCloseBtn" class="action-btn">Fermer</button>
+            </div>
+        </div>
+
+        <div id="rulesModal" class="modal hidden">
+            <div class="modal-content rules-content">
+                <h2>📜 Règles du Songho</h2>
+                <ul>
+                    <li><strong>Objectif :</strong> Capturer ou bloquer tous les pions adverses.</li>
+                    <li><strong>Déplacement :</strong> Un pion se déplace d'une case (horizontal ou vertical).</li>
+                    <li><strong>Capture :</strong> Saut par-dessus un pion adverse sur une case vide.</li>
+                    <li><strong>Alignement :</strong> 3 pions alignés permettent de retirer un pion adverse.</li>
+                    <li><strong>Victoire :</strong> Plus aucun pion adverse ou impossibilité de jouer.</li>
+                </ul>
+                <button id="rulesCloseBtn" class="action-btn">Compris !</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
