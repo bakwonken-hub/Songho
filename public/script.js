@@ -1,159 +1,366 @@
-// ============================================
-// SONGHO - Version Terminal Moderne
-// Multijoueur local & en ligne
-// ============================================
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
+// ========== ÉTAT DU JEU ==========
 let board = Array(5).fill().map(() => Array(5).fill(null));
 let currentTurn = 'B';
 let selectedPiece = null;
 let gameMode = 'local';
 let gameOver = false;
 
-// Socket.io (online mode)
+// Socket.io
 let socket = null;
 let gameId = null;
 let playerColor = null;
 let isMyTurn = false;
 
-// Canvas
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const cellSize = canvas.width / 5;
+// ========== THREE.JS ==========
+let scene, camera, renderer, labelRenderer, controls;
+let pieces = {}; // Stockage des pièces 3D
+let squares = [];
+let raycaster;
+let mouse;
 
-// Correspondance colonnes
-const colMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4 };
-const reverseColMap = { 0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E' };
+// Couleurs
+const colors = {
+    boardLight: 0xc9a96e,
+    boardDark: 0xdeb887,
+    gold: 0xffd700,
+    whitePiece: 0xeeeeee,
+    blackPiece: 0x222222
+};
 
-// ========== INITIALISATION ==========
-function initBoard() {
-    board = Array(5).fill().map(() => Array(5).fill(null));
+function init3D() {
+    const container = document.getElementById('canvas-container');
     
-    // Blancs (NORD)
-    for (let i = 0; i < 2; i++) {
-        for (let j = 0; j < 5; j++) {
-            board[i][j] = 'B';
-        }
-    }
-    board[2][0] = 'B';
-    board[2][4] = 'B';
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050510);
+    scene.fog = new THREE.FogExp2(0x050510, 0.008);
     
-    // Noirs (SUD)
-    for (let i = 3; i < 5; i++) {
-        for (let j = 0; j < 5; j++) {
-            board[i][j] = 'N';
-        }
-    }
+    // Caméra
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(8, 12, 8);
+    camera.lookAt(2, 0, 2);
+    
+    // Rendu
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    
+    // CSS2DRenderer pour les textes
+    labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.left = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+    
+    // Contrôles
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = false;
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.zoomSpeed = 1.2;
+    controls.target.set(2, 0, 2);
+    
+    // Raycaster pour la sélection
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+    
+    // Éclairage
+    setupLights();
+    
+    // Création du plateau
+    createBoard();
+    
+    // Animation
+    animate();
+    
+    // Événements
+    window.addEventListener('resize', onWindowResize);
+    renderer.domElement.addEventListener('click', onCanvasClick);
 }
 
-function resetGame() {
-    initBoard();
-    currentTurn = 'B';
-    selectedPiece = null;
-    gameOver = false;
-    drawBoard();
-    updateScores();
-    addLog('🔄 Nouvelle partie ! Les blancs commencent.', 'system');
-    updatePrompt();
+function setupLights() {
+    // Lumière ambiante
+    const ambientLight = new THREE.AmbientLight(0x404060);
+    scene.add(ambientLight);
+    
+    // Lumière principale directionnelle
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 7);
+    dirLight.castShadow = true;
+    dirLight.receiveShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+    
+    // Remplissage
+    const fillLight = new THREE.PointLight(0x4466cc, 0.3);
+    fillLight.position.set(-2, 3, 4);
+    scene.add(fillLight);
+    
+    // Lumière chaude venant du bas
+    const warmLight = new THREE.PointLight(0xffaa66, 0.4);
+    warmLight.position.set(0, -1, 0);
+    scene.add(warmLight);
+    
+    // Lumière d'accentuation
+    const accentLight = new THREE.PointLight(0xff6600, 0.5);
+    accentLight.position.set(3, 5, 2);
+    scene.add(accentLight);
+    
+    // Particules ambiantes (étoiles)
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 1500;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+        starPositions[i*3] = (Math.random() - 0.5) * 200;
+        starPositions[i*3+1] = (Math.random() - 0.5) * 50 + 10;
+        starPositions[i*3+2] = (Math.random() - 0.5) * 100 - 50;
+    }
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffd700, size: 0.05, transparent: true, opacity: 0.6 });
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
 }
 
-// ========== AFFICHAGE ==========
-function drawBoard() {
+function createBoard() {
+    const boardGroup = new THREE.Group();
+    
+    // Plateau principal
+    const boardBase = new THREE.BoxGeometry(5.8, 0.2, 5.8);
+    const boardMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2a1a, roughness: 0.4, metalness: 0.1 });
+    const basePlate = new THREE.Mesh(boardBase, boardMaterial);
+    basePlate.position.set(2, -0.3, 2);
+    basePlate.receiveShadow = true;
+    boardGroup.add(basePlate);
+    
+    // Cases
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            const x = j * cellSize;
-            const y = i * cellSize;
-            
-            // Case
             const isDark = (i + j) % 2 === 1;
-            ctx.fillStyle = isDark ? '#2a3a2a' : '#3a4a3a';
-            ctx.fillRect(x, y, cellSize, cellSize);
+            const squareMat = new THREE.MeshStandardMaterial({
+                color: isDark ? 0xb58863 : 0xf0d9b5,
+                roughness: 0.3,
+                metalness: 0.1,
+                emissive: isDark ? 0x000000 : 0x221100,
+                emissiveIntensity: 0.05
+            });
             
-            // Bordure néon
-            ctx.strokeStyle = '#00ff88';
-            ctx.lineWidth = 0.5;
-            ctx.strokeRect(x, y, cellSize, cellSize);
+            const square = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.08, 0.95), squareMat);
+            square.position.set(j + 0.5, -0.2, i + 0.5);
+            square.userData = { row: i, col: j };
+            square.castShadow = true;
+            square.receiveShadow = true;
+            boardGroup.add(square);
+            squares.push(square);
             
-            // Numéros de ligne/colonne
-            if (j === 0) {
-                ctx.font = `bold ${cellSize * 0.25}px 'Share Tech Mono'`;
-                ctx.fillStyle = '#5a8a7a';
-                ctx.shadowBlur = 0;
-                ctx.fillText(`${i+1}`, x + 3, y + cellSize * 0.2);
-            }
-            if (i === 4) {
-                ctx.font = `bold ${cellSize * 0.25}px 'Share Tech Mono'`;
-                ctx.fillStyle = '#5a8a7a';
-                ctx.fillText(reverseColMap[j], x + cellSize - 12, y + cellSize - 3);
-            }
-            
-            // Pion
-            if (board[i][j]) {
-                const centerX = x + cellSize/2;
-                const centerY = y + cellSize/2;
-                const radius = cellSize * 0.32;
-                
-                ctx.shadowBlur = 8;
-                ctx.shadowOffsetX = 2;
-                ctx.shadowOffsetY = 2;
-                ctx.shadowColor = 'rgba(0, 255, 136, 0.3)';
-                
-                const gradient = ctx.createRadialGradient(centerX - 5, centerY - 5, 5, centerX, centerY, radius);
-                if (board[i][j] === 'B') {
-                    gradient.addColorStop(0, '#ffffff');
-                    gradient.addColorStop(1, '#ccccdd');
-                } else {
-                    gradient.addColorStop(0, '#444455');
-                    gradient.addColorStop(1, '#111122');
-                }
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.fill();
-                
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = board[i][j] === 'B' ? '#aaaacc' : '#222233';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                
-                // Effet brillant
-                ctx.beginPath();
-                ctx.arc(centerX - 3, centerY - 3, radius * 0.2, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.fill();
-                
-                // Sélection
-                if (selectedPiece && selectedPiece.x === i && selectedPiece.y === j) {
-                    ctx.strokeStyle = '#ffaa44';
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius + 6, 0, 2 * Math.PI);
-                    ctx.stroke();
-                    
-                    // Effet pulsation
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius + 10, 0, 2 * Math.PI);
-                    ctx.strokeStyle = 'rgba(255, 170, 68, 0.5)';
-                    ctx.stroke();
-                }
-            }
+            // Bordure dorée
+            const borderMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+            const border = new THREE.Mesh(new THREE.BoxGeometry(1, 0.02, 0.05), borderMat);
+            border.position.set(j + 0.5, -0.15, i + 0.5);
+            boardGroup.add(border);
         }
     }
     
-    // Effet de grille lumineuse
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    for (let i = 0; i <= 5; i++) {
-        ctx.moveTo(i * cellSize, 0);
-        ctx.lineTo(i * cellSize, canvas.height);
-        ctx.moveTo(0, i * cellSize);
-        ctx.lineTo(canvas.width, i * cellSize);
-    }
-    ctx.strokeStyle = 'rgba(0, 255, 136, 0.15)';
-    ctx.stroke();
+    // Bordures du plateau
+    const borderMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1 });
+    const borderWidth = 0.1;
+    const borderHeight = 0.15;
+    
+    const borders = [
+        { pos: [2, -0.15, -0.2], size: [6, borderHeight, borderWidth] },
+        { pos: [2, -0.15, 5.2], size: [6, borderHeight, borderWidth] },
+        { pos: [-0.2, -0.15, 2.5], size: [borderWidth, borderHeight, 5.4] },
+        { pos: [5.2, -0.15, 2.5], size: [borderWidth, borderHeight, 5.4] }
+    ];
+    
+    borders.forEach(b => {
+        const borderPiece = new THREE.Mesh(new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]), borderMat);
+        borderPiece.position.set(b.pos[0], b.pos[1], b.pos[2]);
+        boardGroup.add(borderPiece);
+    });
+    
+    scene.add(boardGroup);
 }
 
-function updateScores() {
+function createPiece(row, col, color) {
+    const geometry = new THREE.SphereGeometry(0.38, 64, 64);
+    const material = new THREE.MeshStandardMaterial({
+        color: color === 'B' ? 0xffffff : 0x222222,
+        metalness: 0.3,
+        roughness: 0.2,
+        emissive: color === 'B' ? 0xffffff : 0x333333,
+        emissiveIntensity: 0.1
+    });
+    
+    const piece = new THREE.Mesh(geometry, material);
+    piece.position.set(col + 0.5, 0, row + 0.5);
+    piece.userData = { row, col, color };
+    piece.castShadow = true;
+    piece.receiveShadow = true;
+    
+    // Reflets (boule intérieure)
+    const innerGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25, 32, 32),
+        new THREE.MeshStandardMaterial({
+            color: color === 'B' ? 0xffdd99 : 0x886622,
+            emissive: color === 'B' ? 0xffaa66 : 0x442200,
+            emissiveIntensity: 0.3,
+            transparent: true,
+            opacity: 0.6
+        })
+    );
+    piece.add(innerGlow);
+    
+    scene.add(piece);
+    return piece;
+}
+
+function updatePieces3D() {
+    // Supprimer toutes les pièces existantes
+    Object.values(pieces).forEach(piece => {
+        scene.remove(piece);
+    });
+    pieces = {};
+    
+    // Créer les nouvelles pièces
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            if (board[i][j]) {
+                const piece = createPiece(i, j, board[i][j]);
+                pieces[`${i},${j}`] = piece;
+            }
+        }
+    }
+}
+
+function animatePieceMove(piece, targetX, targetZ) {
+    if (!piece) return;
+    const startY = piece.position.y;
+    const startX = piece.position.x;
+    const startZ = piece.position.z;
+    let progress = 0;
+    const duration = 300;
+    const startTime = performance.now();
+    
+    function animateMove(now) {
+        const elapsed = now - startTime;
+        progress = Math.min(1, elapsed / duration);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        
+        piece.position.x = startX + (targetX - startX) * ease;
+        piece.position.z = startZ + (targetZ - startZ) * ease;
+        piece.position.y = startY + Math.sin(Math.PI * ease) * 0.3;
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateMove);
+        } else {
+            piece.position.y = startY;
+        }
+    }
+    
+    requestAnimationFrame(animateMove);
+}
+
+function animateCapture(piece) {
+    if (!piece) return;
+    let scale = 1;
+    let progress = 0;
+    const startTime = performance.now();
+    const duration = 300;
+    
+    function animate(now) {
+        const elapsed = now - startTime;
+        progress = Math.min(1, elapsed / duration);
+        scale = 1 + Math.sin(Math.PI * progress) * 0.5;
+        piece.scale.set(scale, scale, scale);
+        
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            scene.remove(piece);
+        }
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+function onCanvasClick(event) {
+    if (gameMode === 'online' && (!isMyTurn || gameOver)) return;
+    
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(squares);
+    
+    if (intersects.length > 0) {
+        const hit = intersects[0];
+        const row = hit.object.userData.row;
+        const col = hit.object.userData.col;
+        
+        handleCellClick(row, col);
+    }
+}
+
+function handleCellClick(row, col) {
+    if (gameOver) return;
+    
+    if (selectedPiece === null) {
+        if (board[row][col] === currentTurn) {
+            selectedPiece = { row, col };
+            highlightSquare(row, col, true);
+            addLog(`Pion sélectionné en ${String.fromCharCode(65+col)}${row+1}`);
+        }
+    } else {
+        const fromRow = selectedPiece.row;
+        const fromCol = selectedPiece.col;
+        
+        if (executeMove(fromRow, fromCol, row, col)) {
+            if (gameMode === 'online' && socket && gameId) {
+                socket.emit('makeMove', {
+                    gameId: gameId,
+                    fromX: fromRow,
+                    fromY: fromCol,
+                    toX: row,
+                    toY: col
+                });
+            }
+        }
+        clearHighlight();
+        selectedPiece = null;
+    }
+}
+
+function highlightSquare(row, col, active) {
+    const square = squares.find(s => s.userData.row === row && s.userData.col === col);
+    if (square) {
+        square.material.emissiveIntensity = active ? 0.3 : 0.05;
+        square.material.emissive = active ? 0xff6600 : 0x000000;
+    }
+}
+
+function clearHighlight() {
+    squares.forEach(square => {
+        square.material.emissiveIntensity = 0.05;
+        square.material.emissive = 0x000000;
+    });
+}
+
+function addLog(message, type = 'move') {
+    console.log(`[${type}] ${message}`);
+}
+
+function updateUI() {
     let whiteCount = 0, blackCount = 0;
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
@@ -161,65 +368,46 @@ function updateScores() {
             if (board[i][j] === 'N') blackCount++;
         }
     }
+    
     document.getElementById('whiteScore').textContent = whiteCount;
     document.getElementById('blackScore').textContent = blackCount;
     
-    // Mettre à jour l'indicateur de tour
-    const turnPiece = document.getElementById('turnPiece');
     const turnText = document.getElementById('turnText');
+    const turnPiece = document.getElementById('turnPiece3d');
+    
     if (currentTurn === 'B') {
-        turnPiece.className = 'turn-piece white-turn';
-        turnText.textContent = 'BLANC';
-        document.querySelector('.player-north').classList.add('active-turn');
-        document.querySelector('.player-south').classList.remove('active-turn');
+        turnText.textContent = 'TOUR DES BLANCS';
+        turnPiece.className = 'turn-piece-3d white-turn';
     } else {
-        turnPiece.className = 'turn-piece black-turn';
-        turnText.textContent = 'NOIR';
-        document.querySelector('.player-south').classList.add('active-turn');
-        document.querySelector('.player-north').classList.remove('active-turn');
+        turnText.textContent = 'TOUR DES NOIRS';
+        turnPiece.className = 'turn-piece-3d black-turn';
     }
     
-    // Vérifier victoire
     if (whiteCount === 0 && !gameOver) {
         gameOver = true;
-        addLog('🏆 VICTOIRE ! Les NOIRS remportent la partie !', 'victory');
-        showMessage('Victoire des Noirs !', '🏆', 'NOIRS GAGNENT');
+        showModal('🏆 VICTOIRE !', 'Les NOIRS remportent la partie !');
     } else if (blackCount === 0 && !gameOver) {
         gameOver = true;
-        addLog('🏆 VICTOIRE ! Les BLANCS remportent la partie !', 'victory');
-        showMessage('Victoire des Blancs !', '🏆', 'BLANCS GAGNENT');
+        showModal('🏆 VICTOIRE !', 'Les BLANCS remportent la partie !');
     }
 }
 
-function updatePrompt() {
-    const promptText = document.getElementById('promptText');
-    if (gameOver) {
-        promptText.textContent = 'partie terminée - [RESET] pour rejouer';
-    } else if (selectedPiece) {
-        const letter = reverseColMap[selectedPiece.y];
-        const num = selectedPiece.x + 1;
-        promptText.textContent = `pion sélectionné ${letter}${num} - choisissez une destination`;
-    } else {
-        promptText.textContent = `sélectionnez un pion ${currentTurn === 'B' ? 'blanc' : 'noir'} (NORD=${currentTurn === 'B' ? '●' : '○'})`;
-    }
+function showModal(title, message) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMessage').textContent = message;
+    document.getElementById('messageModal').classList.remove('hidden');
 }
 
-function addLog(message, type = 'move') {
-    const logArea = document.getElementById('logArea');
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${type}`;
-    const time = new Date().toLocaleTimeString();
-    entry.innerHTML = `[${time}] ${message}`;
-    logArea.appendChild(entry);
-    logArea.scrollTop = logArea.scrollHeight;
-    
-    // Limiter l'historique
-    while (logArea.children.length > 50) {
-        logArea.removeChild(logArea.firstChild);
-    }
+function hideModal() {
+    document.getElementById('messageModal').classList.add('hidden');
+    document.getElementById('rulesModal').classList.add('hidden');
 }
 
-// ========== LOGIQUE DE JEU ==========
+function showRules() {
+    document.getElementById('rulesModal').classList.remove('hidden');
+}
+
+// ========== LOGIQUE DE JEU (identique à avant) ==========
 function isValidMove(fromX, fromY, toX, toY, color) {
     if (toX < 0 || toX > 4 || toY < 0 || toY > 4) return false;
     if (board[toX][toY] !== null) return false;
@@ -241,126 +429,87 @@ function isValidMove(fromX, fromY, toX, toY, color) {
 
 function executeMove(fromX, fromY, toX, toY) {
     const piece = board[fromX][fromY];
-    if (!piece || piece !== currentTurn) {
-        addLog(`❌ Ce n'est pas votre pion !`, 'error');
-        return false;
-    }
-    if (gameOver) {
-        addLog(`❌ Partie terminée !`, 'error');
-        return false;
-    }
+    if (!piece || piece !== currentTurn) return false;
+    if (gameOver) return false;
+    if (!isValidMove(fromX, fromY, toX, toY, currentTurn)) return false;
     
-    if (!isValidMove(fromX, fromY, toX, toY, currentTurn)) {
-        addLog(`❌ Déplacement invalide !`, 'error');
-        return false;
+    // Animation de déplacement
+    const pieceKey = `${fromX},${fromY}`;
+    const movingPiece = pieces[pieceKey];
+    if (movingPiece) {
+        animatePieceMove(movingPiece, toY + 0.5, toX + 0.5);
     }
     
-    const fromLetter = reverseColMap[fromY];
-    const fromNum = fromX + 1;
-    const toLetter = reverseColMap[toY];
-    const toNum = toX + 1;
-    
-    // Sauvegarder l'état pour capture
-    const wasCapture = (Math.abs(toX - fromX) === 2 || Math.abs(toY - fromY) === 2);
-    let capturedPiece = null;
-    
-    if (wasCapture) {
-        const midX = (fromX + toX) / 2;
-        const midY = (fromY + toY) / 2;
-        capturedPiece = board[midX][midY];
+    // Capture
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    if (Math.abs(dx) === 2 || Math.abs(dy) === 2) {
+        const midX = fromX + dx/2;
+        const midY = fromY + dy/2;
+        const capturedKey = `${midX},${midY}`;
+        const capturedPiece = pieces[capturedKey];
+        if (capturedPiece) {
+            animateCapture(capturedPiece);
+            delete pieces[capturedKey];
+        }
+        board[midX][midY] = null;
     }
     
     // Déplacer
     board[toX][toY] = piece;
     board[fromX][fromY] = null;
     
-    // Capture
-    if (wasCapture && capturedPiece) {
-        const midX = (fromX + toX) / 2;
-        const midY = (fromY + toY) / 2;
-        board[midX][midY] = null;
-        addLog(`⚔️ CAPTURE ! ${fromLetter}${fromNum} → ${toLetter}${toNum} (pion ${capturedPiece === 'B' ? 'blanc' : 'noir'} éliminé)`, 'capture');
-    } else {
-        addLog(`♟️ Déplacement : ${fromLetter}${fromNum} → ${toLetter}${toNum}`, 'move');
+    // Mettre à jour les pièces 3D
+    delete pieces[pieceKey];
+    pieces[`${toX},${toY}`] = movingPiece;
+    if (movingPiece) {
+        movingPiece.userData = { row: toX, col: toY, color: piece };
     }
     
-    // Changement de tour
     currentTurn = currentTurn === 'B' ? 'N' : 'B';
-    selectedPiece = null;
-    
-    drawBoard();
-    updateScores();
-    updatePrompt();
+    updateUI();
     
     return true;
 }
 
-// ========== GESTION DES CLICS ==========
-function handleCanvasClick(e) {
-    if (gameMode === 'online' && (!isMyTurn || gameOver)) {
-        if (!isMyTurn) addLog(`⏳ Attendez votre tour...`, 'system');
-        return;
+function resetGame() {
+    initBoard();
+    currentTurn = 'B';
+    selectedPiece = null;
+    gameOver = false;
+    updatePieces3D();
+    updateUI();
+    clearHighlight();
+    addLog('🔄 Nouvelle partie !', 'system');
+}
+
+function initBoard() {
+    board = Array(5).fill().map(() => Array(5).fill(null));
+    for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 5; j++) board[i][j] = 'B';
     }
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-    
-    const col = Math.floor(mouseX / cellSize);
-    const row = Math.floor(mouseY / cellSize);
-    
-    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
-        if (selectedPiece === null) {
-            if (board[row][col] === currentTurn && !gameOver) {
-                selectedPiece = { x: row, y: col };
-                drawBoard();
-                updatePrompt();
-                addLog(`🎯 Pion sélectionné : ${reverseColMap[col]}${row+1}`, 'system');
-            } else if (board[row][col] !== null && board[row][col] !== currentTurn && !gameOver) {
-                addLog(`❌ Ce n'est pas votre pion !`, 'error');
-            }
-        } else {
-            if (executeMove(selectedPiece.x, selectedPiece.y, row, col)) {
-                if (gameMode === 'online' && socket && gameId) {
-                    socket.emit('makeMove', {
-                        gameId: gameId,
-                        fromX: selectedPiece.x,
-                        fromY: selectedPiece.y,
-                        toX: row,
-                        toY: col
-                    });
-                }
-            }
-            selectedPiece = null;
-            drawBoard();
-            updatePrompt();
-        }
+    board[2][0] = 'B';
+    board[2][4] = 'B';
+    for (let i = 3; i < 5; i++) {
+        for (let j = 0; j < 5; j++) board[i][j] = 'N';
     }
 }
 
-// ========== MODE LOCAL ==========
+// ========== MODES DE JEU ==========
 function initLocalMode() {
     gameMode = 'local';
     if (socket) socket.disconnect();
-    document.getElementById('connectionStatus').textContent = '● LOCAL';
     document.getElementById('onlinePanel').classList.add('hidden');
     resetGame();
-    addLog('🟢 Mode local activé - 2 joueurs sur le même écran', 'system');
 }
 
-// ========== MODE ONLINE ==========
 function initOnlineMode() {
     gameMode = 'online';
     if (socket) socket.disconnect();
     
     socket = io();
-    document.getElementById('connectionStatus').textContent = '🟡 CONNEXION';
     
     socket.on('connect', () => {
-        document.getElementById('connectionStatus').textContent = '● EN LIGNE';
         addLog('🌐 Connecté au serveur', 'system');
     });
     
@@ -368,8 +517,7 @@ function initOnlineMode() {
         gameId = data.gameId;
         playerColor = data.color;
         isMyTurn = (playerColor === 'B');
-        document.getElementById('gameStatus').innerHTML = `✅ Partie créée ! Code: <strong>${gameId}</strong>`;
-        addLog(`🎮 Partie créée - Code: ${gameId} - Vous êtes ${playerColor === 'B' ? 'BLANC' : 'NOIR'}`, 'system');
+        document.getElementById('gameStatus').innerHTML = `✅ Partie créée ! Code: ${gameId}`;
         resetGame();
     });
     
@@ -378,8 +526,7 @@ function initOnlineMode() {
         playerColor = data.color;
         isMyTurn = (playerColor === 'B');
         document.getElementById('gameStatus').innerHTML = `✅ Connecté à la partie ${gameId}`;
-        addLog(`🔗 Rejoint la partie ${gameId} - Vous êtes ${playerColor === 'B' ? 'BLANC' : 'NOIR'}`, 'system');
-        showMessage(`Vous avez rejoint la partie !`, '🎮', `${playerColor === 'B' ? 'BLANC' : 'NOIR'} - Attendez l'adversaire`);
+        showModal('Partie rejointe', `Vous êtes ${playerColor === 'B' ? 'BLANC' : 'NOIR'}`);
     });
     
     socket.on('gameStarted', (data) => {
@@ -388,68 +535,59 @@ function initOnlineMode() {
         playerColor = data.colors[socket.id];
         isMyTurn = (currentTurn === playerColor);
         gameOver = false;
-        drawBoard();
-        updateScores();
-        document.getElementById('gameStatus').innerHTML = `🎲 Partie en cours ! ${isMyTurn ? 'C\'est à vous' : 'Attendez votre tour'}`;
-        addLog(`🎯 Partie démarrée ! ${playerColor === 'B' ? 'Blancs' : 'Noirs'} - ${isMyTurn ? 'C\'est à vous de jouer !' : 'Attendez l\'adversaire'}`, 'system');
+        updatePieces3D();
+        updateUI();
+        addLog('🎯 Partie démarrée !', 'system');
     });
     
     socket.on('moveMade', (data) => {
         board = data.board;
         currentTurn = data.currentTurn;
         isMyTurn = (currentTurn === playerColor);
-        drawBoard();
-        updateScores();
-        if (data.captured) addLog(`⚔️ L'adversaire a capturé un pion !`, 'capture');
-        addLog(`👥 Tour ${currentTurn === 'B' ? 'blanc' : 'noir'}`, 'system');
-        updatePrompt();
-    });
-    
-    socket.on('moveError', (message) => {
-        addLog(`❌ ${message}`, 'error');
+        updatePieces3D();
+        updateUI();
+        if (data.captured) addLog('⚔️ Capture !', 'capture');
     });
     
     socket.on('gameOver', (data) => {
         const winner = data.winner === 'B' ? 'Blancs' : 'Noirs';
         gameOver = true;
-        addLog(`🏆 VICTOIRE ! ${winner} remportent la partie !`, 'victory');
-        document.getElementById('gameStatus').innerHTML = `🏆 Partie terminée - Victoire ${winner}`;
-        showMessage(`Victoire des ${winner} !`, '🏆', 'FIN DE LA PARTIE');
+        showModal('🏆 VICTOIRE', `${winner} remportent la partie !`);
     });
     
     socket.on('gameReset', (data) => {
         board = data.board;
         currentTurn = data.currentTurn;
         gameOver = false;
-        isMyTurn = (currentTurn === playerColor);
-        drawBoard();
-        updateScores();
-        addLog(`🔄 L'adversaire a relancé la partie`, 'system');
+        updatePieces3D();
+        updateUI();
     });
     
     socket.on('playerDisconnected', () => {
-        addLog(`⚠️ L'adversaire a quitté la partie`, 'error');
-        document.getElementById('gameStatus').innerHTML = `⚠️ Adversaire déconnecté`;
+        addLog('⚠️ Adversaire déconnecté', 'error');
         gameOver = true;
+    });
+    
+    socket.on('moveError', (msg) => {
+        addLog(`❌ ${msg}`, 'error');
     });
 }
 
-// ========== UI & MODALS ==========
-function showMessage(message, icon = 'ℹ️', title = 'Information') {
-    const modal = document.getElementById('messageModal');
-    document.getElementById('modalIcon').textContent = icon;
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-    modal.classList.remove('hidden');
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function showRules() {
-    document.getElementById('rulesModal').classList.remove('hidden');
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
 }
 
-// ========== EVENT LISTENERS ==========
-canvas.addEventListener('click', handleCanvasClick);
-
+// ========== INITIALISATION ==========
 document.getElementById('localModeBtn').addEventListener('click', () => {
     document.getElementById('localModeBtn').classList.add('active');
     document.getElementById('onlineModeBtn').classList.remove('active');
@@ -472,7 +610,7 @@ document.getElementById('joinGameBtn').addEventListener('click', () => {
     if (code && socket) socket.emit('joinGame', code);
 });
 
-document.getElementById('resetGameBtn').addEventListener('click', () => {
+document.getElementById('resetBtn').addEventListener('click', () => {
     if (gameMode === 'online' && socket && gameId) {
         socket.emit('resetGame', gameId);
     }
@@ -480,17 +618,10 @@ document.getElementById('resetGameBtn').addEventListener('click', () => {
 });
 
 document.getElementById('rulesBtn').addEventListener('click', showRules);
+document.getElementById('modalCloseBtn').addEventListener('click', hideModal);
+document.getElementById('rulesCloseBtn').addEventListener('click', hideModal);
 
-document.getElementById('modalCloseBtn').addEventListener('click', () => {
-    document.getElementById('messageModal').classList.add('hidden');
-});
-
-document.getElementById('rulesCloseBtn').addEventListener('click', () => {
-    document.getElementById('rulesModal').classList.add('hidden');
-});
-
-// Initialisation
 initBoard();
-drawBoard();
-updateScores();
-addLog('🟢 SYSTEME: Songho v2.0 prêt. Les blancs commencent.', 'system');
+init3D();
+updatePieces3D();
+updateUI();
