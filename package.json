@@ -1,7 +1,7 @@
 {
   "name": "awele-game",
-  "version": "1.0.0",
-  "description": "Awélé - Jeu de semis africain (Oware/Awari) avec multijoueur",
+  "version": "3.0.0",
+  "description": "Awélé - Jeu de semis africain (7 cases, 5 graines) avec multijoueur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,12 +10,14 @@
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.5.4",
-    "cors": "^2.8.5"
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["awele", "aware", "owari", "board-game", "african-game", "multiplayer"],
+  "keywords": ["awele", "awari", "owari", "board-game", "multiplayer"],
   "author": "Awélé Game",
   "license": "MIT"
 }
