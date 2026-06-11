@@ -1,7 +1,7 @@
 {
-  "name": "songho-3d",
-  "version": "3.0.0",
-  "description": "Songho - Jeu de stratégie africain en 3D avec multijoueur",
+  "name": "awele-game",
+  "version": "1.0.0",
+  "description": "Awélé - Jeu de semis africain (Oware/Awari) avec multijoueur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,7 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["songho", "3d", "threejs", "board-game", "multiplayer"],
-  "author": "Songho 3D",
+  "keywords": ["awele", "aware", "owari", "board-game", "african-game", "multiplayer"],
+  "author": "Awélé Game",
   "license": "MIT"
 }
