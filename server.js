@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Gestion des parties multijoueur
+// Gestion des parties
 const games = new Map();
 
 function generateGameId() {
@@ -28,20 +28,14 @@ function generateGameId() {
 function initializeBoard() {
   const board = Array(5).fill().map(() => Array(5).fill(null));
   
-  // Pions blancs (NORD)
   for (let i = 0; i < 2; i++) {
-    for (let j = 0; j < 5; j++) {
-      board[i][j] = 'B';
-    }
+    for (let j = 0; j < 5; j++) board[i][j] = 'B';
   }
   board[2][0] = 'B';
   board[2][4] = 'B';
   
-  // Pions noirs (SUD)
   for (let i = 3; i < 5; i++) {
-    for (let j = 0; j < 5; j++) {
-      board[i][j] = 'N';
-    }
+    for (let j = 0; j < 5; j++) board[i][j] = 'N';
   }
   
   return board;
@@ -68,10 +62,8 @@ function isValidMove(board, fromX, fromY, toX, toY, color) {
 
 function executeMove(board, fromX, fromY, toX, toY, color) {
   const piece = board[fromX][fromY];
-  if (!piece || piece !== color) return { success: false, message: "Ce n'est pas votre pion" };
-  if (!isValidMove(board, fromX, fromY, toX, toY, color)) {
-    return { success: false, message: "Déplacement invalide" };
-  }
+  if (!piece || piece !== color) return { success: false };
+  if (!isValidMove(board, fromX, fromY, toX, toY, color)) return { success: false };
   
   const newBoard = board.map(row => [...row]);
   newBoard[toX][toY] = piece;
@@ -122,7 +114,6 @@ io.on('connection', (socket) => {
     });
     socket.join(gameId);
     socket.emit('gameCreated', { gameId, color: 'B' });
-    console.log(`📌 Partie ${gameId} créée`);
   });
 
   socket.on('joinGame', (gameId) => {
@@ -140,7 +131,6 @@ io.on('connection', (socket) => {
       });
       
       socket.emit('gameJoined', { gameId, color: 'N' });
-      console.log(`🎲 Joueur ${socket.id} a rejoint la partie ${gameId}`);
     } else {
       socket.emit('joinError', 'Partie inexistante ou déjà pleine');
     }
@@ -170,12 +160,11 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('moveMade', {
           board: game.board,
           currentTurn: game.currentTurn,
-          fromX, fromY, toX, toY,
           captured: result.captured
         });
       }
     } else {
-      socket.emit('moveError', result.message);
+      socket.emit('moveError', 'Déplacement invalide');
     }
   });
 
@@ -190,7 +179,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('👋 Joueur déconnecté:', socket.id);
     for (const [gameId, game] of games.entries()) {
       if (game.players.includes(socket.id)) {
         io.to(gameId).emit('playerDisconnected');
@@ -203,5 +191,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`🚀 Serveur 3D démarré sur http://localhost:${PORT}`);
 });
